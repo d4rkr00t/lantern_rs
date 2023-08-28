@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "crates/lantern_core",
+  "crates/lantern_parse_ts",
+  "crates/lantern_testing",
+]
+
+resolver = "2"

@@ -1,0 +1,18 @@
+[package]
+name = "lantern_core"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+color-eyre = "0.6.2"
+
+swc_atoms = "0.5.9"
+swc_common = { version = "0.32.0", features = ["tty-emitter"] }
+swc_ecma_ast = "0.108.0"
+swc_ecma_parser = "0.138.0"
+swc_ecma_visit = "0.94.0"
+
+lantern_parse_ts = { path = "../lantern_parse_ts" }
+lantern_testing = { path = "../lantern_testing" }
