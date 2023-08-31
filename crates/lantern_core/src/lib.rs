@@ -162,7 +162,9 @@ impl Visit for TSSymbols {
     }
 
     fn visit_import_decl(&mut self, import_decl: &swc_ecma_ast::ImportDecl) {
+        // println!("import_decl: {:#?}", import_decl);
         let src = FileReference::new(&import_decl.src.value, &import_decl.src.span);
+        let type_only = import_decl.type_only;
         for spec in &import_decl.specifiers {
             match &spec {
                 &swc_ecma_ast::ImportSpecifier::Default(spec) => {
@@ -170,6 +172,7 @@ impl Visit for TSSymbols {
                         spec.local.sym.to_string(),
                         spec.span,
                         src.clone(),
+                        type_only,
                     ));
                 }
                 &swc_ecma_ast::ImportSpecifier::Namespace(spec) => {
@@ -177,6 +180,7 @@ impl Visit for TSSymbols {
                         spec.local.sym.to_string(),
                         spec.span,
                         src.clone(),
+                        type_only,
                     ));
                 }
                 &swc_ecma_ast::ImportSpecifier::Named(spec) => {
@@ -184,11 +188,10 @@ impl Visit for TSSymbols {
                         spec.local.sym.to_string(),
                         spec.span,
                         src.clone(),
+                        type_only || spec.is_type_only,
                     ));
                 }
-                _ => {
-                    println!("import_decl: {:#?}", import_decl);
-                }
+                _ => {}
             }
         }
     }
@@ -228,9 +231,9 @@ pub enum Export {
 
 #[derive(Debug)]
 pub enum Import {
-    Default(String, Span, FileReference),
-    Star(String, Span, FileReference),
-    Named(String, Span, FileReference),
+    Default(String, Span, FileReference, bool),
+    Star(String, Span, FileReference, bool),
+    Named(String, Span, FileReference, bool),
 }
 
 pub fn analyze(path: &PathBuf) -> Result<()> {
