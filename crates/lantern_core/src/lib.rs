@@ -13,7 +13,7 @@ use swc_ecma_visit::Visit;
 struct TSSymbols {
     pub path: PathBuf,
     pub exports: Vec<Export>,
-    pub imports: Vec<()>,
+    pub imports: Vec<Import>,
 }
 
 impl TSSymbols {
@@ -160,9 +160,41 @@ impl Visit for TSSymbols {
             }
         }
     }
+
+    fn visit_import_decl(&mut self, import_decl: &swc_ecma_ast::ImportDecl) {
+        let src = FileReference::new(&import_decl.src.value, &import_decl.src.span);
+        for spec in &import_decl.specifiers {
+            match &spec {
+                &swc_ecma_ast::ImportSpecifier::Default(spec) => {
+                    self.imports.push(Import::Default(
+                        spec.local.sym.to_string(),
+                        spec.span,
+                        src.clone(),
+                    ));
+                }
+                &swc_ecma_ast::ImportSpecifier::Namespace(spec) => {
+                    self.imports.push(Import::Star(
+                        spec.local.sym.to_string(),
+                        spec.span,
+                        src.clone(),
+                    ));
+                }
+                &swc_ecma_ast::ImportSpecifier::Named(spec) => {
+                    self.imports.push(Import::Named(
+                        spec.local.sym.to_string(),
+                        spec.span,
+                        src.clone(),
+                    ));
+                }
+                _ => {
+                    println!("import_decl: {:#?}", import_decl);
+                }
+            }
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileReference {
     pub raw: JsWord,
     pub span: Span,
@@ -194,6 +226,13 @@ pub enum Export {
     Named(String, Option<String>, Span, Option<FileReference>),
 }
 
+#[derive(Debug)]
+pub enum Import {
+    Default(String, Span, FileReference),
+    Star(String, Span, FileReference),
+    Named(String, Span, FileReference),
+}
+
 pub fn analyze(path: &PathBuf) -> Result<()> {
     let mut ts_s = TSSymbols::new(path.clone());
     let program = parse_ts(path)?;
@@ -201,6 +240,7 @@ pub fn analyze(path: &PathBuf) -> Result<()> {
     ts_s.visit_program(&program);
 
     println!("exports: {:#?}", ts_s.exports);
+    println!("imports: {:#?}", ts_s.imports);
 
     return Ok(());
 }
