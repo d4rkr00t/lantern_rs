@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use lantern_core::analyze;
+    use lantern_symbols_map::analyze;
     use lantern_testing::load_fixture;
     use std::path::PathBuf;
 

@@ -237,13 +237,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "lantern_core"
+name = "lantern_parse_ts"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
- "lantern_parse_ts",
  "lantern_testing",
- "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
@@ -251,11 +249,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "lantern_parse_ts"
+name = "lantern_symbols_map"
 version = "0.1.0"
 dependencies = [
  "color-eyre",
+ "lantern_parse_ts",
  "lantern_testing",
+ "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",

@@ -10,13 +10,13 @@ use swc_ecma_ast::ExportAll;
 use swc_ecma_visit::Visit;
 
 #[derive(Debug)]
-struct TSSymbols {
+struct TSSymbolsMap {
     pub path: PathBuf,
     pub exports: Vec<Export>,
     pub imports: Vec<Import>,
 }
 
-impl TSSymbols {
+impl TSSymbolsMap {
     pub fn new(path: PathBuf) -> Self {
         Self {
             path,
@@ -26,7 +26,7 @@ impl TSSymbols {
     }
 }
 
-impl Visit for TSSymbols {
+impl Visit for TSSymbolsMap {
     // export * from "./path";
     fn visit_export_all(&mut self, export_all: &ExportAll) {
         self.exports.push(Export::All(FileReference::new(
@@ -162,7 +162,6 @@ impl Visit for TSSymbols {
     }
 
     fn visit_import_decl(&mut self, import_decl: &swc_ecma_ast::ImportDecl) {
-        // println!("import_decl: {:#?}", import_decl);
         let src = FileReference::new(&import_decl.src.value, &import_decl.src.span);
         let type_only = import_decl.type_only;
         for spec in &import_decl.specifiers {
@@ -236,8 +235,8 @@ pub enum Import {
     Named(String, Span, FileReference, bool),
 }
 
-pub fn analyze(path: &PathBuf) -> Result<()> {
-    let mut ts_s = TSSymbols::new(path.clone());
+pub fn build(path: &PathBuf) -> Result<()> {
+    let mut ts_s = TSSymbolsMap::new(path.clone());
     let program = parse_ts(path)?;
 
     ts_s.visit_program(&program);
