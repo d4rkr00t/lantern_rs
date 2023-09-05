@@ -1,7 +1,8 @@
 [workspace]
 members = [
-  "crates/lantern_symbols_map",
+  "crates/lantern_cli",
   "crates/lantern_parse_ts",
+  "crates/lantern_symbols_map",
   "crates/lantern_testing",
 ]
 

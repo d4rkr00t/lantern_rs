@@ -9,36 +9,116 @@ use swc_common::Span;
 use swc_ecma_ast::ExportAll;
 use swc_ecma_visit::Visit;
 
+pub fn build(path: &PathBuf) -> Result<TSSymbolsMap> {
+    let mut ts_s = TSSymbolsMap::new(vec![path.clone()]);
+    ts_s.build()?;
+    return Ok(ts_s);
+}
+
 #[derive(Debug)]
-struct TSSymbolsMap {
-    pub path: PathBuf,
-    pub exports: Vec<Export>,
-    pub imports: Vec<Import>,
+pub struct TSSymbolsMap {
+    pub files: Vec<PathBuf>,
+    pub symbols: Vec<TSSymbol>,
 }
 
 impl TSSymbolsMap {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new(entry_points: Vec<PathBuf>) -> Self {
         Self {
-            path,
-            exports: vec![],
-            imports: vec![],
+            files: entry_points,
+            symbols: vec![],
+        }
+    }
+
+    pub fn build(&mut self) -> Result<()> {
+        for (i, file) in self.files.iter().enumerate() {
+            let program = parse_ts(file)?;
+            let mut visitor = TSVisitor::new(i);
+            visitor.visit_program(&program);
+
+            for symbol in visitor.symbols {
+                self.symbols.push(symbol);
+            }
+            return Ok(());
+        }
+
+        return Ok(());
+    }
+}
+
+#[derive(Debug)]
+pub struct TSSymbol {
+    file_id: usize,
+    symbol: TSSymbolData,
+}
+
+#[derive(Debug)]
+pub enum TSSymbolData {
+    ExportAll(FileReference),
+    ExportClassDecl(String, Span),
+    ExportDecl(String, Span),
+    ExportDefaultClassDecl(Option<String>, Span),
+    ExportDefaultDecl(String, Span),
+    ExportDefaultExpr(Span),
+    ExportDefaultFnDecl(Option<String>, Span),
+    ExportDefaultInterfaceDecl(String, Span),
+    ExportEnumDecl(String, Span),
+    ExportFnDecl(String, Span),
+    ExportInterfaceDecl(String, Span),
+    ExportTypeAliasDecl(String, Span),
+    ExportNamed(String, Option<String>, Span, Option<FileReference>),
+
+    ImportDefault(String, Span, FileReference, bool),
+    ImportStar(String, Span, FileReference, bool),
+    ImportNamed(String, Span, FileReference, bool),
+}
+
+#[derive(Debug, Clone)]
+pub struct FileReference {
+    pub raw: JsWord,
+    pub span: Span,
+}
+
+impl FileReference {
+    pub fn new(raw: &JsWord, span: &Span) -> Self {
+        Self {
+            raw: raw.clone(),
+            span: span.clone(),
         }
     }
 }
 
-impl Visit for TSSymbolsMap {
+struct TSVisitor {
+    file_id: usize,
+    pub symbols: Vec<TSSymbol>,
+}
+
+impl TSVisitor {
+    pub fn new(file_id: usize) -> Self {
+        return Self {
+            file_id,
+            symbols: vec![],
+        };
+    }
+}
+
+impl Visit for TSVisitor {
     // export * from "./path";
     fn visit_export_all(&mut self, export_all: &ExportAll) {
-        self.exports.push(Export::All(FileReference::new(
-            &export_all.src.value,
-            &export_all.span,
-        )))
+        self.symbols.push(TSSymbol {
+            file_id: self.file_id,
+            symbol: TSSymbolData::ExportAll(FileReference::new(
+                &export_all.src.value,
+                &export_all.span,
+            )),
+        })
     }
 
     // export default <expr>;
     fn visit_export_default_expr(&mut self, export_default_expr: &swc_ecma_ast::ExportDefaultExpr) {
-        self.exports
-            .push(Export::DefaultExpr(export_default_expr.span.clone()));
+        self.symbols.push(TSSymbol {
+            file_id: self.file_id,
+            symbol: TSSymbolData::ExportDefaultExpr(export_default_expr.span.clone()),
+        })
     }
 
     // export function a() {}
@@ -50,43 +130,59 @@ impl Visit for TSSymbolsMap {
     // export enum A {}
     fn visit_export_decl(&mut self, export_decl: &swc_ecma_ast::ExportDecl) {
         match &export_decl.decl {
-            swc_ecma_ast::Decl::Class(class_decl) => self.exports.push(Export::ClassDecl(
-                class_decl.ident.sym.to_string(),
-                class_decl.class.span.clone(),
-            )),
-            swc_ecma_ast::Decl::Fn(fn_decl) => self.exports.push(Export::FnDecl(
-                fn_decl.ident.sym.to_string(),
-                fn_decl.function.span.clone(),
-            )),
+            swc_ecma_ast::Decl::Class(class_decl) => self.symbols.push(TSSymbol {
+                file_id: self.file_id,
+                symbol: TSSymbolData::ExportClassDecl(
+                    class_decl.ident.sym.to_string(),
+                    class_decl.class.span.clone(),
+                ),
+            }),
+            swc_ecma_ast::Decl::Fn(fn_decl) => self.symbols.push(TSSymbol {
+                file_id: self.file_id,
+                symbol: TSSymbolData::ExportFnDecl(
+                    fn_decl.ident.sym.to_string(),
+                    fn_decl.function.span.clone(),
+                ),
+            }),
             swc_ecma_ast::Decl::Var(var_decl) => {
                 for decl in &var_decl.decls {
                     if let swc_ecma_ast::Pat::Ident(ident) = &decl.name {
-                        self.exports
-                            .push(Export::Decl(ident.id.sym.to_string(), decl.span.clone()));
+                        self.symbols.push(TSSymbol {
+                            file_id: self.file_id,
+                            symbol: TSSymbolData::ExportDecl(
+                                ident.id.sym.to_string(),
+                                decl.span.clone(),
+                            ),
+                        });
                     }
                 }
             }
-            swc_ecma_ast::Decl::TsEnum(ts_enum_decl) => self.exports.push(Export::EnumDecl(
-                ts_enum_decl.id.sym.to_string(),
-                ts_enum_decl.span.clone(),
-            )),
-            swc_ecma_ast::Decl::TsInterface(ts_interface_decl) => {
-                self.exports.push(Export::InterfaceDecl(
+            swc_ecma_ast::Decl::TsEnum(ts_enum_decl) => self.symbols.push(TSSymbol {
+                file_id: self.file_id,
+                symbol: TSSymbolData::ExportEnumDecl(
+                    ts_enum_decl.id.sym.to_string(),
+                    ts_enum_decl.span.clone(),
+                ),
+            }),
+            swc_ecma_ast::Decl::TsInterface(ts_interface_decl) => self.symbols.push(TSSymbol {
+                file_id: self.file_id,
+                symbol: TSSymbolData::ExportInterfaceDecl(
                     ts_interface_decl.id.sym.to_string(),
                     ts_interface_decl.span.clone(),
-                ))
-            }
-            swc_ecma_ast::Decl::TsTypeAlias(ts_type_alias_decl) => {
-                self.exports.push(Export::TypeAliasDecl(
+                ),
+            }),
+            swc_ecma_ast::Decl::TsTypeAlias(ts_type_alias_decl) => self.symbols.push(TSSymbol {
+                file_id: self.file_id,
+                symbol: TSSymbolData::ExportTypeAliasDecl(
                     ts_type_alias_decl.id.sym.to_string(),
                     ts_type_alias_decl.span.clone(),
-                ))
-            }
+                ),
+            }),
             _ => {}
         }
     }
 
-    // export { default } from "./exports_default_decl";
+    // export { default } from "@atlaskit/editor-plugin-block-type";
     // export { a, b } from "./exports_decl";
     // export { a as a2, b as b2 } from "./exports_decl";
     // export { c };
@@ -113,12 +209,21 @@ impl Visit for TSSymbolsMap {
                         None
                     };
 
-                    self.exports.push(Export::Named(
-                        orig,
-                        exported,
-                        named_export_specifier.span.clone(),
-                        None,
-                    ));
+                    let src = if let Some(src) = &n.src {
+                        Some(FileReference::new(&src.value, &src.span))
+                    } else {
+                        None
+                    };
+
+                    self.symbols.push(TSSymbol {
+                        file_id: self.file_id,
+                        symbol: TSSymbolData::ExportNamed(
+                            orig,
+                            exported,
+                            named_export_specifier.span.clone(),
+                            src,
+                        ),
+                    });
                 }
                 _ => {}
             }
@@ -138,10 +243,13 @@ impl Visit for TSSymbolsMap {
                 } else {
                     None
                 };
-                self.exports.push(Export::DefaultClassDecl(
-                    name,
-                    class_decl.class.span.clone(),
-                ))
+                self.symbols.push(TSSymbol {
+                    file_id: self.file_id,
+                    symbol: TSSymbolData::ExportDefaultClassDecl(
+                        name,
+                        class_decl.class.span.clone(),
+                    ),
+                })
             }
             swc_ecma_ast::DefaultDecl::Fn(fn_decl) => {
                 let name = if let Some(ident) = &fn_decl.ident {
@@ -149,14 +257,19 @@ impl Visit for TSSymbolsMap {
                 } else {
                     None
                 };
-                self.exports
-                    .push(Export::DefaultFnDecl(name, fn_decl.function.span.clone()))
+                self.symbols.push(TSSymbol {
+                    file_id: self.file_id,
+                    symbol: TSSymbolData::ExportDefaultFnDecl(name, fn_decl.function.span.clone()),
+                })
             }
             swc_ecma_ast::DefaultDecl::TsInterfaceDecl(ts_interface_decl) => {
-                self.exports.push(Export::DefaultInterfaceDecl(
-                    ts_interface_decl.id.sym.to_string(),
-                    ts_interface_decl.span.clone(),
-                ))
+                self.symbols.push(TSSymbol {
+                    file_id: self.file_id,
+                    symbol: TSSymbolData::ExportDefaultInterfaceDecl(
+                        ts_interface_decl.id.sym.to_string(),
+                        ts_interface_decl.span.clone(),
+                    ),
+                })
             }
         }
     }
@@ -166,83 +279,43 @@ impl Visit for TSSymbolsMap {
         let type_only = import_decl.type_only;
         for spec in &import_decl.specifiers {
             match &spec {
+                // import React from "react";
                 &swc_ecma_ast::ImportSpecifier::Default(spec) => {
-                    self.imports.push(Import::Default(
-                        spec.local.sym.to_string(),
-                        spec.span,
-                        src.clone(),
-                        type_only,
-                    ));
+                    self.symbols.push(TSSymbol {
+                        file_id: self.file_id,
+                        symbol: TSSymbolData::ImportDefault(
+                            spec.local.sym.to_string(),
+                            spec.span,
+                            src.clone(),
+                            type_only,
+                        ),
+                    });
                 }
+                // import * as React from "react";
                 &swc_ecma_ast::ImportSpecifier::Namespace(spec) => {
-                    self.imports.push(Import::Star(
-                        spec.local.sym.to_string(),
-                        spec.span,
-                        src.clone(),
-                        type_only,
-                    ));
+                    self.symbols.push(TSSymbol {
+                        file_id: self.file_id,
+                        symbol: TSSymbolData::ImportStar(
+                            spec.local.sym.to_string(),
+                            spec.span,
+                            src.clone(),
+                            type_only,
+                        ),
+                    });
                 }
+                // import { useState } from "react";
                 &swc_ecma_ast::ImportSpecifier::Named(spec) => {
-                    self.imports.push(Import::Named(
-                        spec.local.sym.to_string(),
-                        spec.span,
-                        src.clone(),
-                        type_only || spec.is_type_only,
-                    ));
+                    self.symbols.push(TSSymbol {
+                        file_id: self.file_id,
+                        symbol: TSSymbolData::ImportNamed(
+                            spec.local.sym.to_string(),
+                            spec.span,
+                            src.clone(),
+                            type_only || spec.is_type_only,
+                        ),
+                    });
                 }
-                _ => {}
             }
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct FileReference {
-    pub raw: JsWord,
-    pub span: Span,
-}
-
-impl FileReference {
-    pub fn new(raw: &JsWord, span: &Span) -> Self {
-        Self {
-            raw: raw.clone(),
-            span: span.clone(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum Export {
-    All(FileReference),
-    ClassDecl(String, Span),
-    Decl(String, Span),
-    DefaultClassDecl(Option<String>, Span),
-    DefaultDecl(String, Span),
-    DefaultExpr(Span),
-    DefaultFnDecl(Option<String>, Span),
-    DefaultInterfaceDecl(String, Span),
-    EnumDecl(String, Span),
-    FnDecl(String, Span),
-    InterfaceDecl(String, Span),
-    TypeAliasDecl(String, Span),
-    Named(String, Option<String>, Span, Option<FileReference>),
-}
-
-#[derive(Debug)]
-pub enum Import {
-    Default(String, Span, FileReference, bool),
-    Star(String, Span, FileReference, bool),
-    Named(String, Span, FileReference, bool),
-}
-
-pub fn build(path: &PathBuf) -> Result<()> {
-    let mut ts_s = TSSymbolsMap::new(path.clone());
-    let program = parse_ts(path)?;
-
-    ts_s.visit_program(&program);
-
-    println!("exports: {:#?}", ts_s.exports);
-    println!("imports: {:#?}", ts_s.imports);
-
-    return Ok(());
 }
