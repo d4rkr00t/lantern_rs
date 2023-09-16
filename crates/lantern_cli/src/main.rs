@@ -22,7 +22,8 @@ fn main() {
                 .get_one::<String>("path")
                 .expect("path is required");
             let project_path = PathBuf::from(project_path_raw.as_str());
-            let _ = commands::analyze::analyze(project_path);
+            let res = commands::analyze::analyze(project_path);
+            println!("{:#?}", res);
         }
         _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
     }

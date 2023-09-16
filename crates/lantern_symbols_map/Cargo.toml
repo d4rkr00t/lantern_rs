@@ -11,6 +11,7 @@ color-eyre = "0.6.2"
 swc_atoms = "0.5.9"
 swc_common = { version = "0.32.0", features = ["tty-emitter"] }
 swc_ecma_ast = "0.108.0"
+swc_ecma_loader = { version = "0.44.4", features = ["node", "tsc"] }
 swc_ecma_parser = "0.138.0"
 swc_ecma_visit = "0.94.0"
 

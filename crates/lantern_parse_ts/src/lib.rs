@@ -12,7 +12,6 @@ use swc_ecma_parser::TsConfig;
 
 pub fn parse_ts(path: &PathBuf) -> Result<swc_ecma_ast::Program> {
     let tsx = matches!(path.extension(), Some(ext) if ext == "tsx");
-    println!("{:?}", path);
     let src = std::fs::read_to_string(path)?;
     let src = src.as_str();
     let failure_message = format!("Failed to parse {:?}", path);

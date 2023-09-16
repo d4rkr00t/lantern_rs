@@ -1,53 +1,109 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use color_eyre::eyre::Result;
 
 use lantern_parse_ts::parse_ts;
 
-use swc_atoms::JsWord;
-use swc_common::Span;
+use swc_common::{FileName, Span};
 use swc_ecma_ast::ExportAll;
+use swc_ecma_loader::{resolve::Resolve, resolvers::node::NodeModulesResolver};
 use swc_ecma_visit::Visit;
 
 pub fn build(path: &PathBuf) -> Result<TSSymbolsMap> {
-    let mut ts_s = TSSymbolsMap::new(vec![path.clone()]);
-    ts_s.build()?;
+    let mut ts_s = TSSymbolsMap::new();
+    let path = path.canonicalize()?;
+    ts_s.add_module(TSModule {
+        file_path: path.clone(),
+        symbols: vec![],
+        is_entry: true,
+    });
+
+    let mut id = 0;
+
+    loop {
+        let module = if let Some(module) = ts_s.get_module(id) {
+            module
+        } else {
+            break;
+        };
+        let program = parse_ts(&module.file_path)?;
+        let parent = module.file_path.parent().unwrap().to_path_buf();
+        let mut visitor = TSVisitor::new(id, parent, &mut ts_s);
+        visitor.visit_program(&program);
+        id += 1;
+    }
+
     return Ok(ts_s);
 }
 
 #[derive(Debug)]
 pub struct TSSymbolsMap {
-    pub files: Vec<PathBuf>,
+    pub modules: Vec<TSModule>,
     pub symbols: Vec<TSSymbol>,
+    path_to_module_id: HashMap<String, usize>,
+    resolver: NodeModulesResolver,
 }
 
 impl TSSymbolsMap {
-    pub fn new(entry_points: Vec<PathBuf>) -> Self {
+    pub fn new() -> Self {
         Self {
-            files: entry_points,
-            symbols: vec![],
+            modules: Vec::new(),
+            symbols: Vec::new(),
+            path_to_module_id: HashMap::new(),
+            resolver: NodeModulesResolver::default(),
         }
     }
 
-    pub fn build(&mut self) -> Result<()> {
-        for (i, file) in self.files.iter().enumerate() {
-            let program = parse_ts(file)?;
-            let mut visitor = TSVisitor::new(i);
-            visitor.visit_program(&program);
+    pub fn resolve(&self, from: &PathBuf, to: &str) -> Result<PathBuf> {
+        let path = self.resolver.resolve(&FileName::Real(from.clone()), to);
+        match path {
+            Ok(FileName::Real(p)) => Ok(p),
+            _ => Err(color_eyre::eyre::eyre!(
+                "Couldn't resolve path {} from {}",
+                to,
+                from.display()
+            )),
+        }
+    }
 
-            for symbol in visitor.symbols {
-                self.symbols.push(symbol);
-            }
-            return Ok(());
+    pub fn add_module(&mut self, module: TSModule) -> usize {
+        if self.has_module(module.file_path.to_str().unwrap()) {
+            return self.path_to_module_id[module.file_path.to_str().unwrap()];
         }
 
-        return Ok(());
+        let id = self.modules.len();
+        self.modules.push(module);
+        self.path_to_module_id
+            .insert(self.modules[id].file_path.to_str().unwrap().to_string(), id);
+        return id;
+    }
+
+    pub fn get_module(&self, id: usize) -> Option<&TSModule> {
+        return self.modules.get(id);
+    }
+
+    pub fn has_module(&self, path: &str) -> bool {
+        return self.path_to_module_id.contains_key(path);
+    }
+
+    pub fn add_symbol(&mut self, module_id: usize, symbol: TSSymbol) -> usize {
+        let id = self.symbols.len();
+        self.symbols.push(symbol);
+        self.modules[module_id].symbols.push(id);
+        return id;
     }
 }
 
 #[derive(Debug)]
+pub struct TSModule {
+    file_path: PathBuf,
+    symbols: Vec<usize>,
+    is_entry: bool,
+}
+
+#[derive(Debug)]
 pub struct TSSymbol {
-    file_id: usize,
+    module_id: usize,
     symbol: TSSymbolData,
 }
 
@@ -74,51 +130,65 @@ pub enum TSSymbolData {
 
 #[derive(Debug, Clone)]
 pub struct FileReference {
-    pub raw: JsWord,
+    pub module_id: usize,
     pub span: Span,
 }
 
 impl FileReference {
-    pub fn new(raw: &JsWord, span: &Span) -> Self {
+    pub fn new(module_id: usize, span: &Span) -> Self {
         Self {
-            raw: raw.clone(),
+            module_id,
             span: span.clone(),
         }
     }
 }
 
-struct TSVisitor {
-    file_id: usize,
-    pub symbols: Vec<TSSymbol>,
+struct TSVisitor<'a> {
+    module_id: usize,
+    parent_path: PathBuf,
+    symbols_map: &'a mut TSSymbolsMap,
 }
 
-impl TSVisitor {
-    pub fn new(file_id: usize) -> Self {
+impl<'a> TSVisitor<'a> {
+    pub fn new(file_id: usize, parent_path: PathBuf, ts_s: &'a mut TSSymbolsMap) -> Self {
         return Self {
-            file_id,
-            symbols: vec![],
+            parent_path,
+            module_id: file_id,
+            symbols_map: ts_s,
         };
     }
 }
 
-impl Visit for TSVisitor {
+impl<'a> Visit for TSVisitor<'a> {
     // export * from "./path";
     fn visit_export_all(&mut self, export_all: &ExportAll) {
-        self.symbols.push(TSSymbol {
-            file_id: self.file_id,
-            symbol: TSSymbolData::ExportAll(FileReference::new(
-                &export_all.src.value,
-                &export_all.span,
-            )),
-        })
+        let path = self
+            .symbols_map
+            .resolve(&self.parent_path, &export_all.src.value)
+            .unwrap();
+        let module_id = self.symbols_map.add_module(TSModule {
+            file_path: path,
+            symbols: vec![],
+            is_entry: false,
+        });
+        self.symbols_map.add_symbol(
+            self.module_id,
+            TSSymbol {
+                module_id: self.module_id,
+                symbol: TSSymbolData::ExportAll(FileReference::new(module_id, &export_all.span)),
+            },
+        );
     }
 
     // export default <expr>;
     fn visit_export_default_expr(&mut self, export_default_expr: &swc_ecma_ast::ExportDefaultExpr) {
-        self.symbols.push(TSSymbol {
-            file_id: self.file_id,
-            symbol: TSSymbolData::ExportDefaultExpr(export_default_expr.span.clone()),
-        })
+        self.symbols_map.add_symbol(
+            self.module_id,
+            TSSymbol {
+                module_id: self.module_id,
+                symbol: TSSymbolData::ExportDefaultExpr(export_default_expr.span.clone()),
+            },
+        );
     }
 
     // export function a() {}
@@ -130,54 +200,82 @@ impl Visit for TSVisitor {
     // export enum A {}
     fn visit_export_decl(&mut self, export_decl: &swc_ecma_ast::ExportDecl) {
         match &export_decl.decl {
-            swc_ecma_ast::Decl::Class(class_decl) => self.symbols.push(TSSymbol {
-                file_id: self.file_id,
-                symbol: TSSymbolData::ExportClassDecl(
-                    class_decl.ident.sym.to_string(),
-                    class_decl.class.span.clone(),
-                ),
-            }),
-            swc_ecma_ast::Decl::Fn(fn_decl) => self.symbols.push(TSSymbol {
-                file_id: self.file_id,
-                symbol: TSSymbolData::ExportFnDecl(
-                    fn_decl.ident.sym.to_string(),
-                    fn_decl.function.span.clone(),
-                ),
-            }),
+            swc_ecma_ast::Decl::Class(class_decl) => {
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportClassDecl(
+                            class_decl.ident.sym.to_string(),
+                            class_decl.class.span.clone(),
+                        ),
+                    },
+                );
+            }
+            swc_ecma_ast::Decl::Fn(fn_decl) => {
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportFnDecl(
+                            fn_decl.ident.sym.to_string(),
+                            fn_decl.function.span.clone(),
+                        ),
+                    },
+                );
+            }
             swc_ecma_ast::Decl::Var(var_decl) => {
                 for decl in &var_decl.decls {
                     if let swc_ecma_ast::Pat::Ident(ident) = &decl.name {
-                        self.symbols.push(TSSymbol {
-                            file_id: self.file_id,
-                            symbol: TSSymbolData::ExportDecl(
-                                ident.id.sym.to_string(),
-                                decl.span.clone(),
-                            ),
-                        });
+                        self.symbols_map.add_symbol(
+                            self.module_id,
+                            TSSymbol {
+                                module_id: self.module_id,
+                                symbol: TSSymbolData::ExportDecl(
+                                    ident.id.sym.to_string(),
+                                    decl.span.clone(),
+                                ),
+                            },
+                        );
                     }
                 }
             }
-            swc_ecma_ast::Decl::TsEnum(ts_enum_decl) => self.symbols.push(TSSymbol {
-                file_id: self.file_id,
-                symbol: TSSymbolData::ExportEnumDecl(
-                    ts_enum_decl.id.sym.to_string(),
-                    ts_enum_decl.span.clone(),
-                ),
-            }),
-            swc_ecma_ast::Decl::TsInterface(ts_interface_decl) => self.symbols.push(TSSymbol {
-                file_id: self.file_id,
-                symbol: TSSymbolData::ExportInterfaceDecl(
-                    ts_interface_decl.id.sym.to_string(),
-                    ts_interface_decl.span.clone(),
-                ),
-            }),
-            swc_ecma_ast::Decl::TsTypeAlias(ts_type_alias_decl) => self.symbols.push(TSSymbol {
-                file_id: self.file_id,
-                symbol: TSSymbolData::ExportTypeAliasDecl(
-                    ts_type_alias_decl.id.sym.to_string(),
-                    ts_type_alias_decl.span.clone(),
-                ),
-            }),
+            swc_ecma_ast::Decl::TsEnum(ts_enum_decl) => {
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportEnumDecl(
+                            ts_enum_decl.id.sym.to_string(),
+                            ts_enum_decl.span.clone(),
+                        ),
+                    },
+                );
+            }
+            swc_ecma_ast::Decl::TsInterface(ts_interface_decl) => {
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportInterfaceDecl(
+                            ts_interface_decl.id.sym.to_string(),
+                            ts_interface_decl.span.clone(),
+                        ),
+                    },
+                );
+            }
+            swc_ecma_ast::Decl::TsTypeAlias(ts_type_alias_decl) => {
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportTypeAliasDecl(
+                            ts_type_alias_decl.id.sym.to_string(),
+                            ts_type_alias_decl.span.clone(),
+                        ),
+                    },
+                );
+            }
             _ => {}
         }
     }
@@ -210,20 +308,32 @@ impl Visit for TSVisitor {
                     };
 
                     let src = if let Some(src) = &n.src {
-                        Some(FileReference::new(&src.value, &src.span))
+                        let path = self
+                            .symbols_map
+                            .resolve(&self.parent_path, &src.value)
+                            .unwrap();
+                        let module_id = self.symbols_map.add_module(TSModule {
+                            file_path: path,
+                            symbols: vec![],
+                            is_entry: false,
+                        });
+                        Some(FileReference::new(module_id, &src.span))
                     } else {
                         None
                     };
 
-                    self.symbols.push(TSSymbol {
-                        file_id: self.file_id,
-                        symbol: TSSymbolData::ExportNamed(
-                            orig,
-                            exported,
-                            named_export_specifier.span.clone(),
-                            src,
-                        ),
-                    });
+                    self.symbols_map.add_symbol(
+                        self.module_id,
+                        TSSymbol {
+                            module_id: self.module_id,
+                            symbol: TSSymbolData::ExportNamed(
+                                orig,
+                                exported,
+                                named_export_specifier.span.clone(),
+                                src,
+                            ),
+                        },
+                    );
                 }
                 _ => {}
             }
@@ -243,13 +353,16 @@ impl Visit for TSVisitor {
                 } else {
                     None
                 };
-                self.symbols.push(TSSymbol {
-                    file_id: self.file_id,
-                    symbol: TSSymbolData::ExportDefaultClassDecl(
-                        name,
-                        class_decl.class.span.clone(),
-                    ),
-                })
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportDefaultClassDecl(
+                            name,
+                            class_decl.class.span.clone(),
+                        ),
+                    },
+                );
             }
             swc_ecma_ast::DefaultDecl::Fn(fn_decl) => {
                 let name = if let Some(ident) = &fn_decl.ident {
@@ -257,63 +370,90 @@ impl Visit for TSVisitor {
                 } else {
                     None
                 };
-                self.symbols.push(TSSymbol {
-                    file_id: self.file_id,
-                    symbol: TSSymbolData::ExportDefaultFnDecl(name, fn_decl.function.span.clone()),
-                })
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportDefaultFnDecl(
+                            name,
+                            fn_decl.function.span.clone(),
+                        ),
+                    },
+                );
             }
             swc_ecma_ast::DefaultDecl::TsInterfaceDecl(ts_interface_decl) => {
-                self.symbols.push(TSSymbol {
-                    file_id: self.file_id,
-                    symbol: TSSymbolData::ExportDefaultInterfaceDecl(
-                        ts_interface_decl.id.sym.to_string(),
-                        ts_interface_decl.span.clone(),
-                    ),
-                })
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    TSSymbol {
+                        module_id: self.module_id,
+                        symbol: TSSymbolData::ExportDefaultInterfaceDecl(
+                            ts_interface_decl.id.sym.to_string(),
+                            ts_interface_decl.span.clone(),
+                        ),
+                    },
+                );
             }
         }
     }
 
     fn visit_import_decl(&mut self, import_decl: &swc_ecma_ast::ImportDecl) {
-        let src = FileReference::new(&import_decl.src.value, &import_decl.src.span);
+        let path = self
+            .symbols_map
+            .resolve(&self.parent_path, &import_decl.src.value)
+            .unwrap();
+        let module_id = self.symbols_map.add_module(TSModule {
+            file_path: path,
+            symbols: vec![],
+            is_entry: false,
+        });
+        let src = FileReference::new(module_id, &import_decl.src.span);
         let type_only = import_decl.type_only;
         for spec in &import_decl.specifiers {
             match &spec {
                 // import React from "react";
                 &swc_ecma_ast::ImportSpecifier::Default(spec) => {
-                    self.symbols.push(TSSymbol {
-                        file_id: self.file_id,
-                        symbol: TSSymbolData::ImportDefault(
-                            spec.local.sym.to_string(),
-                            spec.span,
-                            src.clone(),
-                            type_only,
-                        ),
-                    });
+                    self.symbols_map.add_symbol(
+                        self.module_id,
+                        TSSymbol {
+                            module_id: self.module_id,
+                            symbol: TSSymbolData::ImportDefault(
+                                spec.local.sym.to_string(),
+                                spec.span,
+                                src.clone(),
+                                type_only,
+                            ),
+                        },
+                    );
                 }
                 // import * as React from "react";
                 &swc_ecma_ast::ImportSpecifier::Namespace(spec) => {
-                    self.symbols.push(TSSymbol {
-                        file_id: self.file_id,
-                        symbol: TSSymbolData::ImportStar(
-                            spec.local.sym.to_string(),
-                            spec.span,
-                            src.clone(),
-                            type_only,
-                        ),
-                    });
+                    self.symbols_map.add_symbol(
+                        self.module_id,
+                        TSSymbol {
+                            module_id: self.module_id,
+                            symbol: TSSymbolData::ImportStar(
+                                spec.local.sym.to_string(),
+                                spec.span,
+                                src.clone(),
+                                type_only,
+                            ),
+                        },
+                    );
                 }
                 // import { useState } from "react";
                 &swc_ecma_ast::ImportSpecifier::Named(spec) => {
-                    self.symbols.push(TSSymbol {
-                        file_id: self.file_id,
-                        symbol: TSSymbolData::ImportNamed(
-                            spec.local.sym.to_string(),
-                            spec.span,
-                            src.clone(),
-                            type_only || spec.is_type_only,
-                        ),
-                    });
+                    self.symbols_map.add_symbol(
+                        self.module_id,
+                        TSSymbol {
+                            module_id: self.module_id,
+                            symbol: TSSymbolData::ImportNamed(
+                                spec.local.sym.to_string(),
+                                spec.span,
+                                src.clone(),
+                                type_only || spec.is_type_only,
+                            ),
+                        },
+                    );
                 }
             }
         }
