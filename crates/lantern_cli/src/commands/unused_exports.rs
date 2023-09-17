@@ -60,18 +60,11 @@ pub fn analyze(project_path: PathBuf) -> Result<()> {
                         return false;
                     }
 
-                    match &x.symbol {
-                        TSSymbolData::ExportClassDecl(e_name, _)
-                        | TSSymbolData::ExportDecl(e_name, _)
-                        | TSSymbolData::ExportEnumDecl(e_name, _)
-                        | TSSymbolData::ExportFnDecl(e_name, _)
-                        | TSSymbolData::ExportInterfaceDecl(e_name, _)
-                        | TSSymbolData::ExportTypeAliasDecl(e_name, _)
-                        | TSSymbolData::ExportNamed(e_name, _, _, _) => {
-                            return e_name == i_name;
-                        }
-                        _ => return false,
+                    if let Some(e_name) = x.get_name() {
+                        return e_name == i_name;
                     }
+
+                    return false;
                 });
 
                 if let Some(idx) = idx {
@@ -114,7 +107,6 @@ pub fn analyze(project_path: PathBuf) -> Result<()> {
         println!("\x1B[0m\x1B[39m---------------------");
         println!();
     }
-    // println!("unused exports: {:#?}", exports);
 
     return Ok(());
 }

@@ -158,6 +158,27 @@ impl TSSymbol {
             TSSymbolData::ImportNamed(_, span, _, _) => span,
         }
     }
+
+    pub fn get_name(&self) -> Option<&str> {
+        match &self.symbol {
+            TSSymbolData::ExportAll(_) => None,
+            TSSymbolData::ExportClassDecl(name, _) => Some(name),
+            TSSymbolData::ExportDecl(name, _) => Some(name),
+            TSSymbolData::ExportDefaultClassDecl(name, _) => name.as_deref(),
+            TSSymbolData::ExportDefaultDecl(name, _) => Some(name),
+            TSSymbolData::ExportDefaultExpr(_) => None,
+            TSSymbolData::ExportDefaultFnDecl(name, _) => name.as_deref(),
+            TSSymbolData::ExportDefaultInterfaceDecl(name, _) => Some(name),
+            TSSymbolData::ExportEnumDecl(name, _) => Some(name),
+            TSSymbolData::ExportFnDecl(name, _) => Some(name),
+            TSSymbolData::ExportInterfaceDecl(name, _) => Some(name),
+            TSSymbolData::ExportTypeAliasDecl(name, _) => Some(name),
+            TSSymbolData::ExportNamed(name, _, _, _) => Some(name),
+            TSSymbolData::ImportDefault(name, _, _, _) => Some(name),
+            TSSymbolData::ImportStar(name, _, _, _) => Some(name),
+            TSSymbolData::ImportNamed(name, _, _, _) => Some(name),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
