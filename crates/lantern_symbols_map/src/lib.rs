@@ -11,7 +11,6 @@ use swc_ecma_visit::Visit;
 
 pub fn build(path: &PathBuf) -> Result<TSSymbolsMap> {
     let mut ts_s = TSSymbolsMap::new();
-    let path = path.canonicalize()?;
     ts_s.add_module(TSModule {
         file_path: path.clone(),
         symbols: vec![],
@@ -42,6 +41,7 @@ pub struct TSSymbolsMap {
     pub symbols: Vec<TSSymbol>,
     path_to_module_id: HashMap<String, usize>,
     resolver: NodeModulesResolver,
+    sources: HashMap<usize, String>,
 }
 
 impl TSSymbolsMap {
@@ -50,7 +50,12 @@ impl TSSymbolsMap {
             modules: Vec::new(),
             symbols: Vec::new(),
             path_to_module_id: HashMap::new(),
-            resolver: NodeModulesResolver::default(),
+            resolver: NodeModulesResolver::new(
+                swc_ecma_loader::TargetEnv::Node,
+                Default::default(),
+                false,
+            ),
+            sources: HashMap::new(),
         }
     }
 
@@ -82,6 +87,10 @@ impl TSSymbolsMap {
         return self.modules.get(id);
     }
 
+    pub fn get_module_id(&self, path: &str) -> Option<usize> {
+        return self.path_to_module_id.get(path).copied();
+    }
+
     pub fn has_module(&self, path: &str) -> bool {
         return self.path_to_module_id.contains_key(path);
     }
@@ -92,22 +101,66 @@ impl TSSymbolsMap {
         self.modules[module_id].symbols.push(id);
         return id;
     }
+
+    fn get_module_source(&mut self, module_id: usize) -> &str {
+        if self.sources.contains_key(&module_id) {
+            &self.sources[&module_id]
+        } else {
+            let source = std::fs::read_to_string(&self.modules[module_id].file_path).unwrap();
+            self.sources.insert(module_id, source.clone());
+            &self.sources[&module_id]
+        }
+    }
+
+    pub fn get_source_from_span(&mut self, module_id: usize, span: &Span) -> String {
+        let source = self.get_module_source(module_id);
+        return source[span.lo.0 as usize..span.hi.0 as usize].to_string();
+    }
+
+    pub fn get_line_number_from_span(&mut self, module_id: usize, span: &Span) -> usize {
+        let source = self.get_module_source(module_id);
+        let source = source[0..span.lo.0 as usize].to_string();
+        return source.lines().count() + 1;
+    }
 }
 
 #[derive(Debug)]
 pub struct TSModule {
-    file_path: PathBuf,
-    symbols: Vec<usize>,
-    is_entry: bool,
+    pub file_path: PathBuf,
+    pub symbols: Vec<usize>,
+    pub is_entry: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TSSymbol {
-    module_id: usize,
-    symbol: TSSymbolData,
+    pub module_id: usize,
+    pub symbol: TSSymbolData,
 }
 
-#[derive(Debug)]
+impl TSSymbol {
+    pub fn get_span(&self) -> &Span {
+        match &self.symbol {
+            TSSymbolData::ExportAll(file_ref) => &file_ref.span,
+            TSSymbolData::ExportClassDecl(_, span) => span,
+            TSSymbolData::ExportDecl(_, span) => span,
+            TSSymbolData::ExportDefaultClassDecl(_, span) => span,
+            TSSymbolData::ExportDefaultDecl(_, span) => span,
+            TSSymbolData::ExportDefaultExpr(span) => span,
+            TSSymbolData::ExportDefaultFnDecl(_, span) => span,
+            TSSymbolData::ExportDefaultInterfaceDecl(_, span) => span,
+            TSSymbolData::ExportEnumDecl(_, span) => span,
+            TSSymbolData::ExportFnDecl(_, span) => span,
+            TSSymbolData::ExportInterfaceDecl(_, span) => span,
+            TSSymbolData::ExportTypeAliasDecl(_, span) => span,
+            TSSymbolData::ExportNamed(_, _, span, _) => span,
+            TSSymbolData::ImportDefault(_, span, _, _) => span,
+            TSSymbolData::ImportStar(_, span, _, _) => span,
+            TSSymbolData::ImportNamed(_, span, _, _) => span,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum TSSymbolData {
     ExportAll(FileReference),
     ExportClassDecl(String, Span),

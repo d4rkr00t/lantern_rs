@@ -10,19 +10,19 @@ fn main() {
         .subcommand_required(true)
         .arg_required_else_help(true)
         .subcommand(
-            Command::new("analyze")
-                .about("Analyzes the project")
+            Command::new("unused_exports")
+                .about("Find unused exports in a project")
                 .arg(Arg::new("path").required(true)),
         )
         .get_matches();
 
     match matches.subcommand() {
-        Some(("analyze", sub_matches)) => {
+        Some(("unused_exports", sub_matches)) => {
             let project_path_raw = sub_matches
                 .get_one::<String>("path")
                 .expect("path is required");
             let project_path = PathBuf::from(project_path_raw.as_str());
-            let res = commands::analyze::analyze(project_path);
+            let res = commands::unused_exports::analyze(project_path);
             println!("{:#?}", res);
         }
         _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
