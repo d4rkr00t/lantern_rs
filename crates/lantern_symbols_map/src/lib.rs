@@ -102,7 +102,7 @@ impl TSSymbolsMap {
         return id;
     }
 
-    fn get_module_source(&mut self, module_id: usize) -> &str {
+    pub fn get_module_source(&mut self, module_id: usize) -> &str {
         if self.sources.contains_key(&module_id) {
             &self.sources[&module_id]
         } else {
@@ -110,6 +110,10 @@ impl TSSymbolsMap {
             self.sources.insert(module_id, source.clone());
             &self.sources[&module_id]
         }
+    }
+
+    pub fn get_module_path(&self, module_id: usize) -> &PathBuf {
+        return &self.modules[module_id].file_path;
     }
 
     pub fn get_source_from_span(&mut self, module_id: usize, span: &Span) -> String {
@@ -120,7 +124,7 @@ impl TSSymbolsMap {
     pub fn get_line_number_from_span(&mut self, module_id: usize, span: &Span) -> usize {
         let source = self.get_module_source(module_id);
         let source = source[0..span.lo.0 as usize].to_string();
-        return source.lines().count() + 1;
+        return source.lines().count();
     }
 }
 

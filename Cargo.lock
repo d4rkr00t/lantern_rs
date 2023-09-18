@@ -367,7 +367,15 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
+ "lantern_code_annotation",
  "lantern_symbols_map",
+]
+
+[[package]]
+name = "lantern_code_annotation"
+version = "0.1.0"
+dependencies = [
+ "swc_common",
 ]
 
 [[package]]

@@ -1,13 +1,16 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use color_eyre::eyre::Result;
 
+use lantern_code_annotation::CodeAnnotation;
 use lantern_symbols_map::{self, TSSymbol, TSSymbolData};
 
 pub fn analyze(project_path: PathBuf) -> Result<()> {
     let abs_path = project_path.canonicalize()?;
     let mut ln_map = lantern_symbols_map::build(&abs_path)?;
     let mut exports: Vec<TSSymbol> = Vec::new();
+    let mut annotations: HashMap<usize, CodeAnnotation> = HashMap::new();
+
     for symbol in &ln_map.symbols {
         match &symbol.symbol {
             TSSymbolData::ExportAll(_)
@@ -95,30 +98,28 @@ pub fn analyze(project_path: PathBuf) -> Result<()> {
 
     for symbol in exports {
         let span = symbol.get_span();
-        let span_source = ln_map.get_source_from_span(symbol.module_id, span);
         let span_line = ln_map.get_line_number_from_span(symbol.module_id, span);
-        let code = printable_code_snippet(&span_source, span_line);
-        let module = ln_map.get_module(symbol.module_id).unwrap();
-        println!(
-            "unused export in {:?} on line {}: \n\x1B[40m{}",
-            &module.file_path, span_line, code,
+        if !annotations.contains_key(&symbol.module_id) {
+            annotations.insert(
+                symbol.module_id,
+                CodeAnnotation::new(
+                    ln_map.get_module_path(symbol.module_id).clone(),
+                    ln_map.get_module_source(symbol.module_id).to_string(),
+                ),
+            );
+        }
+        let annotation = annotations.get_mut(&symbol.module_id).unwrap();
+        annotation.annotate(
+            format!("unused export: {}", symbol.get_name().unwrap()),
+            span_line,
+            span.clone(),
         );
-        println!();
-        println!("\x1B[0m\x1B[39m---------------------");
+    }
+
+    for (_, value) in &annotations {
+        println!("{}", value.print());
         println!();
     }
 
     return Ok(());
-}
-
-fn printable_code_snippet(source: &str, start_line_num: usize) -> String {
-    let mut lines = source.lines();
-    let mut output: Vec<String> = Vec::new();
-
-    while let Some(line) = lines.next() {
-        let line_num = start_line_num + output.len();
-        output.push(format!("{} | {}", line_num, line));
-    }
-
-    return output.join("\n").to_string();
 }
