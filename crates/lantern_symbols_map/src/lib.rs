@@ -9,13 +9,17 @@ use swc_ecma_ast::ExportAll;
 use swc_ecma_loader::{resolve::Resolve, resolvers::node::NodeModulesResolver};
 use swc_ecma_visit::Visit;
 
-pub fn build(path: &PathBuf) -> Result<TSSymbolsMap> {
+pub fn build(entry_points: &Vec<&PathBuf>) -> Result<TSSymbolsMap> {
     let mut ts_s = TSSymbolsMap::new();
-    ts_s.add_module(TSModule {
-        file_path: path.clone(),
-        symbols: vec![],
-        is_entry: true,
-    });
+
+    for entry_point in entry_points {
+        let path = entry_point.canonicalize()?;
+        ts_s.add_module(TSModule {
+            file_path: path,
+            symbols: vec![],
+            is_entry: true,
+        });
+    }
 
     let mut id = 0;
 

@@ -12,17 +12,23 @@ fn main() {
         .subcommand(
             Command::new("unused_exports")
                 .about("Find unused exports in a project")
-                .arg(Arg::new("path").required(true)),
+                .arg(
+                    Arg::new("path")
+                        .required(true)
+                        .num_args(1..)
+                        .value_parser(clap::value_parser!(PathBuf)),
+                ),
         )
         .get_matches();
 
     match matches.subcommand() {
         Some(("unused_exports", sub_matches)) => {
-            let project_path_raw = sub_matches
-                .get_one::<String>("path")
-                .expect("path is required");
-            let project_path = PathBuf::from(project_path_raw.as_str());
-            let res = commands::unused_exports::analyze(project_path);
+            let entry_points = sub_matches
+                .get_many::<PathBuf>("path")
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            commands::unused_exports::analyze(entry_points).unwrap();
         }
         _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
     }

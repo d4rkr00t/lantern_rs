@@ -5,9 +5,8 @@ use color_eyre::eyre::Result;
 use lantern_code_annotation::CodeAnnotation;
 use lantern_symbols_map::{self, TSSymbol, TSSymbolData};
 
-pub fn analyze(project_path: PathBuf) -> Result<()> {
-    let abs_path = project_path.canonicalize()?;
-    let mut ln_map = lantern_symbols_map::build(&abs_path)?;
+pub fn analyze(entry_points: Vec<&PathBuf>) -> Result<()> {
+    let mut ln_map = lantern_symbols_map::build(&entry_points)?;
     let mut exports: Vec<TSSymbol> = Vec::new();
     let mut annotations: HashMap<usize, CodeAnnotation> = HashMap::new();
 
