@@ -1,5 +1,6 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{cmp::min, collections::HashMap, path::PathBuf};
 
+use colored::*;
 use swc_common::Span;
 
 #[derive(Debug)]
@@ -37,6 +38,7 @@ impl CodeAnnotation {
     pub fn print(&self) -> String {
         let lines = self.source.lines().collect::<Vec<_>>();
         let mut result = Vec::new();
+        let mut offset = 0;
 
         if self.annotations.len() == 0 {
             return String::new();
@@ -47,15 +49,31 @@ impl CodeAnnotation {
         for (line_num, line) in lines.iter().enumerate() {
             let annotations = self.annotations.get(&(line_num + 1));
             if annotations.is_none() {
+                offset += line.len() + 1;
                 continue;
             }
             for annotation in annotations.unwrap() {
                 if line_num > 0 {
                     result.push(format!("{} │ {}", line_num, lines[line_num - 1]));
                 }
-                result.push(format!("{} │ {}", line_num + 1, line));
-                result.push(format!("– {}", annotation.message));
+                let span_start_pos = annotation.span.lo.0 as usize - offset;
+                let span_end_pos = min(annotation.span.hi.0 as usize - offset, line.len());
+                let line_num_str = format!("{}", line_num + 1);
+                let highlighted_span = format!(
+                    "{}{}{}",
+                    &line[..span_start_pos],
+                    &line[span_start_pos..span_end_pos].yellow(),
+                    &line[span_end_pos..]
+                );
+                result.push(format!("{} │ {}", line_num_str, highlighted_span));
+                result.push(format!(
+                    "{:indent$}└── {}",
+                    "",
+                    annotation.message,
+                    indent = span_start_pos + 3 + line_num_str.len()
+                ));
             }
+            offset += line.len() + 1;
         }
 
         return result.join("\n").to_string();
