@@ -122,6 +122,9 @@ impl TSSymbolsMap {
     }
 
     pub fn get_line_number_from_span(&mut self, module_id: usize, span: &Span) -> usize {
+        if span.lo.0 == 0 {
+            return 1;
+        }
         let source = self.get_module_source(module_id);
         let source = source[0..span.lo.0 as usize].to_string();
         return source.lines().count();
@@ -177,7 +180,8 @@ impl TSSymbol {
             TSSymbolData::ExportFnDecl(name, _) => Some(name),
             TSSymbolData::ExportInterfaceDecl(name, _) => Some(name),
             TSSymbolData::ExportTypeAliasDecl(name, _) => Some(name),
-            TSSymbolData::ExportNamed(name, _, _, _) => Some(name),
+            TSSymbolData::ExportNamed(name, None, _, _) => Some(name),
+            TSSymbolData::ExportNamed(_, Some(name), _, _) => Some(name),
             TSSymbolData::ImportDefault(name, _, _, _) => Some(name),
             TSSymbolData::ImportStar(name, _, _, _) => Some(name),
             TSSymbolData::ImportNamed(name, _, _, _) => Some(name),

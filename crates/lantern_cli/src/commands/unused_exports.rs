@@ -57,7 +57,7 @@ pub fn analyze(project_path: PathBuf) -> Result<()> {
                 }
             }
             TSSymbolData::ImportNamed(i_name, _, file_ref, _)
-            | TSSymbolData::ExportNamed(i_name, _, _, Some(file_ref)) => {
+            | TSSymbolData::ExportNamed(i_name, None, _, Some(file_ref)) => {
                 let idx = exports.iter().position(|x| {
                     if x.module_id != file_ref.module_id {
                         return false;
@@ -65,6 +65,27 @@ pub fn analyze(project_path: PathBuf) -> Result<()> {
 
                     if let Some(e_name) = x.get_name() {
                         return e_name == i_name;
+                    }
+
+                    return false;
+                });
+
+                if let Some(idx) = idx {
+                    exports.remove(idx);
+                }
+            }
+            TSSymbolData::ExportNamed(i_name, Some(o_name), _, Some(file_ref)) => {
+                let idx = exports.iter().position(|x| {
+                    if x.module_id != file_ref.module_id {
+                        return false;
+                    }
+
+                    if let Some(e_name) = x.get_name() {
+                        return e_name == o_name;
+                    }
+
+                    if let TSSymbolData::ExportDefaultExpr(_) = x.symbol {
+                        return i_name == "default";
                     }
 
                     return false;
@@ -109,11 +130,13 @@ pub fn analyze(project_path: PathBuf) -> Result<()> {
             );
         }
         let annotation = annotations.get_mut(&symbol.module_id).unwrap();
-        annotation.annotate(
-            format!("unused export: {}", symbol.get_name().unwrap()),
-            span_line,
-            span.clone(),
-        );
+        let annotation_message = if let Some(symbol_name) = symbol.get_name() {
+            format!("unused export: {}", symbol_name)
+        } else {
+            "unused export".to_owned()
+        };
+
+        annotation.annotate(annotation_message, span_line, span.clone());
     }
 
     for (_, value) in &annotations {

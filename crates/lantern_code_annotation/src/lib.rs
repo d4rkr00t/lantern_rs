@@ -13,7 +13,6 @@ pub struct CodeAnnotation {
 #[derive(Debug)]
 struct Annotation {
     message: String,
-    line: usize,
     span: Span,
 }
 
@@ -28,11 +27,7 @@ impl CodeAnnotation {
 
     pub fn annotate(&mut self, message: String, line: usize, span: Span) {
         let annotations = self.annotations.entry(line).or_insert_with(Vec::new);
-        annotations.push(Annotation {
-            message,
-            line,
-            span,
-        });
+        annotations.push(Annotation { message, span });
     }
 
     pub fn print(&self) -> String {

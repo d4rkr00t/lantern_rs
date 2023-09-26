@@ -10,3 +10,5 @@ export function c() {
 
 // unused
 export function e() {}
+
+export { default as d } from "./d";

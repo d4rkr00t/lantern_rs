@@ -23,7 +23,6 @@ fn main() {
                 .expect("path is required");
             let project_path = PathBuf::from(project_path_raw.as_str());
             let res = commands::unused_exports::analyze(project_path);
-            println!("{:#?}", res);
         }
         _ => unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`"),
     }
