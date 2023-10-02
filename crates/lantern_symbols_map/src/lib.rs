@@ -75,16 +75,21 @@ impl TSSymbolsMap {
         }
     }
 
-    pub fn add_module(&mut self, module: TSModule) -> usize {
+    pub fn add_module(&mut self, module: TSModule) -> Option<usize> {
+        if let Some(ext) = module.file_path.extension() {
+            if ext == "json" {
+                return None;
+            }
+        }
         if self.has_module(module.file_path.to_str().unwrap()) {
-            return self.path_to_module_id[module.file_path.to_str().unwrap()];
+            return Some(self.path_to_module_id[module.file_path.to_str().unwrap()]);
         }
 
         let id = self.modules.len();
         self.modules.push(module);
         self.path_to_module_id
             .insert(self.modules[id].file_path.to_str().unwrap().to_string(), id);
-        return id;
+        return Some(id);
     }
 
     pub fn get_module(&self, id: usize) -> Option<&TSModule> {
@@ -257,11 +262,17 @@ impl<'a> Visit for TSVisitor<'a> {
             symbols: vec![],
             is_entry: false,
         });
+        if module_id.is_none() {
+            return;
+        }
         self.symbols_map.add_symbol(
             self.module_id,
             TSSymbol {
                 module_id: self.module_id,
-                symbol: TSSymbolData::ExportAll(FileReference::new(module_id, &export_all.span)),
+                symbol: TSSymbolData::ExportAll(FileReference::new(
+                    module_id.unwrap(),
+                    &export_all.span,
+                )),
             },
         );
     }
@@ -403,7 +414,11 @@ impl<'a> Visit for TSVisitor<'a> {
                             symbols: vec![],
                             is_entry: false,
                         });
-                        Some(FileReference::new(module_id, &src.span))
+                        if module_id.is_none() {
+                            None
+                        } else {
+                            Some(FileReference::new(module_id.unwrap(), &src.span))
+                        }
                     } else {
                         None
                     };
@@ -492,7 +507,11 @@ impl<'a> Visit for TSVisitor<'a> {
             symbols: vec![],
             is_entry: false,
         });
-        let src = FileReference::new(module_id, &import_decl.src.span);
+        if module_id.is_none() {
+            return;
+        }
+
+        let src = FileReference::new(module_id.unwrap(), &import_decl.src.span);
         let type_only = import_decl.type_only;
         for spec in &import_decl.specifiers {
             match &spec {

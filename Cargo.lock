@@ -433,6 +433,7 @@ dependencies = [
 name = "lantern_dependency_graph"
 version = "0.1.0"
 dependencies = [
+ "color-eyre",
  "lantern_symbols_map",
 ]
 

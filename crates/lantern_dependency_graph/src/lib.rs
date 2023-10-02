@@ -1,4 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use color_eyre::eyre::Result;
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    path::PathBuf,
+};
 
 use lantern_symbols_map::{TSSymbolData, TSSymbolsMap};
 
@@ -58,6 +62,7 @@ impl LanternFileDependencyMap {
             }
         }
         self.dependency_map = dependency_map;
+        self.inverse_dependency_map = inverse_dependency_map;
     }
 
     pub fn add_dependency(
@@ -105,5 +110,36 @@ impl LanternFileDependencyMap {
         }
         res.push("}".to_string());
         return res.join("\n");
+    }
+
+    pub fn get_affected(
+        &self,
+        changed_file_path: &PathBuf,
+        entries_only: bool,
+    ) -> Result<Vec<PathBuf>> {
+        let mut affected = HashSet::new();
+        let mut queue = VecDeque::from([changed_file_path.clone()]);
+        while queue.len() > 0 {
+            let cur = queue.pop_front().unwrap();
+            let maybe_module_id = self.symbols_map.get_module_id(cur.to_str().unwrap());
+            if let Some(module_id) = maybe_module_id {
+                for from in self
+                    .inverse_dependency_map
+                    .get(&module_id)
+                    .unwrap_or(&HashSet::new())
+                {
+                    let module = self.symbols_map.get_module(*from).unwrap();
+                    if entries_only {
+                        if module.is_entry {
+                            affected.insert(module.file_path.clone());
+                        }
+                    } else {
+                        affected.insert(module.file_path.clone());
+                    }
+                    queue.push_back(module.file_path.clone());
+                }
+            }
+        }
+        return Ok(affected.into_iter().collect());
     }
 }
