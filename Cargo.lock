@@ -417,6 +417,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "lantern_code_annotation",
+ "lantern_dependency_graph",
  "lantern_symbols_map",
 ]
 
@@ -426,6 +427,13 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "swc_common",
+]
+
+[[package]]
+name = "lantern_dependency_graph"
+version = "0.1.0"
+dependencies = [
+ "lantern_symbols_map",
 ]
 
 [[package]]
