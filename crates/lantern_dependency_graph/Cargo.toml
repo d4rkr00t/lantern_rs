@@ -1,5 +1,5 @@
 [package]
-name = "lantern_cli"
+name = "lantern_dependency_graph"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,9 +8,4 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6.2"
 
-clap = { version = "4.4.1", features = ["cargo"] }
-
 lantern_symbols_map = { path = "../lantern_symbols_map" }
-lantern_code_annotation = { path = "../lantern_code_annotation" }
-lantern_dependency_graph = { path = "../lantern_dependency_graph" }
-

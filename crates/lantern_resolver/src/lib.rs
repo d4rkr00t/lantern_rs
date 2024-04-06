@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use oxc_resolver::{ResolveOptions, Resolver};
 
+#[derive(Debug)]
 pub struct LanternResolver {
     resolver: Resolver,
 }

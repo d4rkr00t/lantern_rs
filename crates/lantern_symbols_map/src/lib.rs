@@ -49,6 +49,7 @@ pub fn build(entry_points: &Vec<&PathBuf>) -> Result<TSSymbolsMap> {
     return Ok(ts_s);
 }
 
+#[derive(Debug)]
 pub struct TSSymbolsMap {
     pub modules: Vec<TSModule>,
     pub symbols: Vec<TSSymbol>,
@@ -91,6 +92,10 @@ impl TSSymbolsMap {
 
     pub fn has_module(&self, path: &str) -> bool {
         return self.path_to_module_id.contains_key(path);
+    }
+
+    pub fn get_module_id(&self, path: &str) -> Option<usize> {
+        return self.path_to_module_id.get(path).copied();
     }
 
     pub fn get_module_source(&mut self, module_id: usize) -> &str {

@@ -2,6 +2,7 @@
 members = [
   "crates/lantern_cli",
   "crates/lantern_code_annotation",
+  "crates/lantern_dependency_graph",
   "crates/lantern_parse_ts",
   "crates/lantern_resolver",
   "crates/lantern_symbols_map",

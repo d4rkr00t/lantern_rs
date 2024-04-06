@@ -19,6 +19,16 @@ fn main() {
                         .value_parser(clap::value_parser!(PathBuf)),
                 ),
         )
+        .subcommand(
+            Command::new("depgraph")
+                .about("Build a dependency graph for a project")
+                .arg(
+                    Arg::new("path")
+                        .required(true)
+                        .num_args(1..)
+                        .value_parser(clap::value_parser!(PathBuf)),
+                ),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -29,6 +39,14 @@ fn main() {
                 .flatten()
                 .collect::<Vec<_>>();
             commands::unused_exports::analyze(entry_points).unwrap();
+        }
+        Some(("depgraph", sub_matches)) => {
+            let entry_points = sub_matches
+                .get_many::<PathBuf>("path")
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            commands::depgraph::build(entry_points).unwrap();
         }
         _ => {
             unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`")
