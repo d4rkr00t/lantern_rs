@@ -18,6 +18,7 @@ pub fn build(entry_points: &Vec<&PathBuf>) -> Result<TSSymbolsMap> {
     let resolver = LanternResolver::new();
     let mut ts_s = TSSymbolsMap::new(resolver);
     let allocator = Allocator::default();
+    println!("{:?}", entry_points);
 
     for entry_point in entry_points {
         let path = entry_point.canonicalize()?;
@@ -116,6 +117,19 @@ impl TSSymbolsMap {
 
     pub fn resolve(&self, parent_path: &PathBuf, path: String) -> Result<PathBuf, ()> {
         return self.resolver.resolve(parent_path, &path);
+    }
+
+    pub fn get_module_path(&self, module_id: usize) -> &PathBuf {
+        return &self.modules[module_id].file_path;
+    }
+
+    pub fn get_line_number_from_span(&mut self, module_id: usize, span: &Span) -> usize {
+        if span.start == 0 {
+            return 1;
+        }
+        let source = self.get_module_source(module_id);
+        let source = source[0..span.start as usize].to_string();
+        return source.lines().count();
     }
 }
 
@@ -444,6 +458,48 @@ pub struct TSModule {
 pub struct TSSymbol {
     pub module_id: usize,
     pub symbol: TSSymbolData,
+}
+
+impl TSSymbol {
+    pub fn get_span(&self) -> &Span {
+        match &self.symbol {
+            TSSymbolData::ExportAll(file_ref) => &file_ref.span,
+            TSSymbolData::ExportClassDecl(_, span) => span,
+            TSSymbolData::ExportDecl(_, span) => span,
+            TSSymbolData::ExportDefaultClassDecl(_, span) => span,
+            TSSymbolData::ExportDefaultExpr(span) => span,
+            TSSymbolData::ExportDefaultFnDecl(_, span) => span,
+            TSSymbolData::ExportDefaultInterfaceDecl(_, span) => span,
+            TSSymbolData::ExportEnumDecl(_, span) => span,
+            TSSymbolData::ExportFnDecl(_, span) => span,
+            TSSymbolData::ExportInterfaceDecl(_, span) => span,
+            TSSymbolData::ExportTypeAliasDecl(_, span) => span,
+            TSSymbolData::ExportNamed(_, _, span, _) => span,
+            TSSymbolData::ImportDefault(_, span, _, _) => span,
+            TSSymbolData::ImportStar(_, span, _, _) => span,
+            TSSymbolData::ImportNamed(_, span, _, _) => span,
+        }
+    }
+
+    pub fn get_name(&self) -> Option<&str> {
+        match &self.symbol {
+            TSSymbolData::ExportAll(_) => None,
+            TSSymbolData::ExportClassDecl(name, _) => Some(name),
+            TSSymbolData::ExportDecl(name, _) => Some(name),
+            TSSymbolData::ExportDefaultClassDecl(name, _) => name.as_deref(),
+            TSSymbolData::ExportDefaultExpr(_) => None,
+            TSSymbolData::ExportDefaultFnDecl(name, _) => name.as_deref(),
+            TSSymbolData::ExportDefaultInterfaceDecl(name, _) => Some(name),
+            TSSymbolData::ExportEnumDecl(name, _) => Some(name),
+            TSSymbolData::ExportFnDecl(name, _) => Some(name),
+            TSSymbolData::ExportInterfaceDecl(name, _) => Some(name),
+            TSSymbolData::ExportTypeAliasDecl(name, _) => Some(name),
+            TSSymbolData::ExportNamed(_, name, _, _) => Some(name),
+            TSSymbolData::ImportDefault(name, _, _, _) => Some(name),
+            TSSymbolData::ImportStar(name, _, _, _) => Some(name),
+            TSSymbolData::ImportNamed(name, _, _, _) => Some(name),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

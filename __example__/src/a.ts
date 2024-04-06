@@ -9,3 +9,6 @@ export function a() {
 
 // unused
 export { c } from "./b";
+
+// unused
+export { c as d } from "./b";
