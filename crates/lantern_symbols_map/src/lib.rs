@@ -1,7 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use color_eyre::eyre::Result;
-
 use oxc_allocator::Allocator;
 use oxc_ast::{
     ast::{
@@ -9,16 +8,15 @@ use oxc_ast::{
     },
     Visit,
 };
+use oxc_span::Span;
 
 use lantern_parse_ts::parse_ts;
 use lantern_resolver::LanternResolver;
-use oxc_span::Span;
 
-pub fn build(entry_points: &Vec<&PathBuf>) -> Result<TSSymbolsMap> {
+pub fn build(entry_points: &Vec<PathBuf>) -> Result<TSSymbolsMap> {
     let resolver = LanternResolver::new();
     let mut ts_s = TSSymbolsMap::new(resolver);
     let allocator = Allocator::default();
-    println!("{:?}", entry_points);
 
     for entry_point in entry_points {
         let path = entry_point.canonicalize()?;

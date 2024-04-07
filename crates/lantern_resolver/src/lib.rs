@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use color_eyre::eyre::Result;
 use oxc_resolver::{ResolveOptions, Resolver};
 
 #[derive(Debug)]

@@ -1,8 +1,9 @@
-use color_eyre::eyre::Result;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     path::PathBuf,
 };
+
+use color_eyre::eyre::Result;
 
 use lantern_symbols_map::{TSSymbolData, TSSymbolsMap};
 

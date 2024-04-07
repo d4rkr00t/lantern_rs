@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6.2"
 
-clap = { version = "4.4.1", features = ["cargo"] }
+clap = { version = "4.4.1", features = ["cargo", "derive"] }
 
 lantern_symbols_map = { path = "../lantern_symbols_map" }
 lantern_code_annotation = { path = "../lantern_code_annotation" }

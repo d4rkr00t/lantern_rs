@@ -1,87 +1,54 @@
 use std::path::PathBuf;
 
-use clap::{command, Arg, Command};
+use clap::{command, Parser, Subcommand};
 
 mod commands;
 
-fn main() {
-    let matches = command!()
-        .propagate_version(true)
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .subcommand(
-            Command::new("unused_exports")
-                .about("Find unused exports in a project")
-                .arg(
-                    Arg::new("path")
-                        .required(true)
-                        .num_args(1..)
-                        .value_parser(clap::value_parser!(PathBuf)),
-                ),
-        )
-        .subcommand(
-            Command::new("depgraph")
-                .about("Build a dependency graph for a project")
-                .arg(
-                    Arg::new("path")
-                        .required(true)
-                        .num_args(1..)
-                        .value_parser(clap::value_parser!(PathBuf)),
-                ),
-        )
-        .subcommand(
-            Command::new("affected")
-                .about("Find affected files in a project")
-                .arg(
-                    Arg::new("entries")
-                        .long("entries")
-                        .required(true)
-                        .num_args(1..)
-                        .value_parser(clap::value_parser!(PathBuf)),
-                )
-                .arg(
-                    Arg::new("changed")
-                        .long("changed")
-                        .required(true)
-                        .num_args(1..)
-                        .value_parser(clap::value_parser!(PathBuf)),
-                ),
-        )
-        .get_matches();
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+#[command(propagate_version = true)]
+struct CLI {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    match matches.subcommand() {
-        Some(("unused_exports", sub_matches)) => {
-            let entry_points = sub_matches
-                .get_many::<PathBuf>("path")
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            commands::unused_exports::analyze(entry_points).unwrap();
+#[derive(Subcommand)]
+enum Commands {
+    /// Find unused exports in a project
+    UnusedExports {
+        #[arg(required = true)]
+        path: Vec<PathBuf>,
+    },
+
+    /// Build a dependency graph for a project
+    Depgraph {
+        #[arg(required = true)]
+        path: Vec<PathBuf>,
+    },
+
+    /// Find affected files in a project
+    Affected {
+        #[arg(short, long, required = true)]
+        entries: Vec<PathBuf>,
+
+        #[arg(short, long, required = true)]
+        changed: Vec<PathBuf>,
+    },
+}
+
+fn main() {
+    let cli = CLI::parse();
+
+    match &cli.command {
+        Commands::UnusedExports { path } => {
+            commands::unused_exports::analyze(path).unwrap();
         }
-        Some(("depgraph", sub_matches)) => {
-            let entry_points = sub_matches
-                .get_many::<PathBuf>("path")
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            commands::depgraph::build(entry_points).unwrap();
+        Commands::Depgraph { path } => {
+            commands::depgraph::build(path).unwrap();
         }
-        Some(("affected", sub_matches)) => {
-            let entry_points = sub_matches
-                .get_many::<PathBuf>("entries")
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            let changed = sub_matches
-                .get_many::<PathBuf>("changed")
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            println!("Entries: {:?}, Changed: {:?}", entry_points, changed);
-            commands::affected::analyze(entry_points, changed).unwrap();
-        }
-        _ => {
-            unreachable!("Exhausted list of subcommands and subcommand_required prevents `None`")
+        Commands::Affected { entries, changed } => {
+            println!("Entries: {:?}, Changed: {:?}", entries, changed);
+            commands::affected::analyze(entries, changed).unwrap();
         }
     }
 }
