@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{command, Parser, Subcommand};
+use color_eyre::eyre::Result;
 
 mod commands;
 
@@ -36,7 +37,8 @@ enum Commands {
     },
 }
 
-fn main() {
+fn main() -> Result<()> {
+    color_eyre::install()?;
     let cli = CLI::parse();
 
     match &cli.command {
@@ -50,5 +52,7 @@ fn main() {
             println!("Entries: {:?}, Changed: {:?}", entries, changed);
             commands::affected::analyze(entries, changed).unwrap();
         }
-    }
+    };
+
+    return Ok(());
 }
