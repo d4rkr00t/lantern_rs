@@ -1,4 +1,4 @@
-use std::{cmp::min, collections::HashMap, path::PathBuf};
+use std::{cmp::max, cmp::min, collections::HashMap, path::PathBuf};
 
 use colored::*;
 use oxc_span::Span;
@@ -51,7 +51,8 @@ impl CodeAnnotation {
                 if line_num > 0 {
                     result.push(format!("{} │ {}", line_num, lines[line_num - 1]));
                 }
-                let span_start_pos = annotation.span.start as usize - offset;
+
+                let span_start_pos = max(annotation.span.start as usize - offset, 0);
                 let span_end_pos = min(annotation.span.end as usize - offset, line.len());
                 let line_num_str = format!("{}", line_num + 1);
                 let highlighted_span = format!(

@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn imports() {
         let path_buf = load_fixture!("imports.ts");
-        let ep = vec![&path_buf];
+        let ep = vec![path_buf];
         build(&ep).unwrap();
     }
 }

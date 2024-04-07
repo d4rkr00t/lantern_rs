@@ -118,7 +118,7 @@ impl TSSymbolsMap {
         return id;
     }
 
-    pub fn resolve(&self, parent_path: &PathBuf, path: String) -> Result<PathBuf, ()> {
+    pub fn resolve(&self, parent_path: &PathBuf, path: String) -> Result<PathBuf> {
         return self.resolver.resolve(parent_path, &path);
     }
 
@@ -155,10 +155,16 @@ impl<'a> TSVisitor<'a> {
 impl<'a> Visit<'a> for TSVisitor<'a> {
     // export * from "./path";
     fn visit_export_all_declaration(&mut self, decl: &oxc_ast::ast::ExportAllDeclaration<'a>) {
-        let path = self
+        let maybe_path = self
             .symbols_map
-            .resolve(&self.parent_path, decl.source.value.to_string())
-            .unwrap();
+            .resolve(&self.parent_path, decl.source.value.to_string());
+
+        if maybe_path.is_err() {
+            println!("{}", maybe_path.err().unwrap());
+            return;
+        }
+
+        let path = maybe_path.unwrap();
 
         let module_id = self.symbols_map.add_module(TSModule {
             file_path: path,
@@ -340,10 +346,17 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
             }
         } else {
             let src = if let Some(src) = &decl.source {
-                let path = self
+                let maybe_path = self
                     .symbols_map
-                    .resolve(&self.parent_path, src.value.to_string())
-                    .unwrap();
+                    .resolve(&self.parent_path, src.value.to_string());
+
+                if maybe_path.is_err() {
+                    println!("{}", maybe_path.err().unwrap());
+                    return;
+                }
+
+                let path = maybe_path.unwrap();
+
                 let module_id = self.symbols_map.add_module(TSModule {
                     file_path: path,
                     symbols: vec![],
@@ -379,10 +392,16 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
     }
 
     fn visit_import_declaration(&mut self, import_decl: &oxc_ast::ast::ImportDeclaration<'a>) {
-        let path = self
+        let maybe_path = self
             .symbols_map
-            .resolve(&self.parent_path, import_decl.source.value.to_string())
-            .unwrap();
+            .resolve(&self.parent_path, import_decl.source.value.to_string());
+
+        if maybe_path.is_err() {
+            println!("{}", maybe_path.err().unwrap());
+            return;
+        }
+
+        let path = maybe_path.unwrap();
 
         let module_id = self.symbols_map.add_module(TSModule {
             file_path: path,

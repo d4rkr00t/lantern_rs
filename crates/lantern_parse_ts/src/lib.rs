@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use color_eyre::eyre::Result;
-
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Program;
 use oxc_parser::Parser;
