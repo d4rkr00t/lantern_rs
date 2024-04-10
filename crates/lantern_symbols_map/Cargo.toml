@@ -15,3 +15,4 @@ oxc_span = "0.12.1"
 lantern_parse_ts = { path = "../lantern_parse_ts" }
 lantern_resolver = { path = "../lantern_resolver" }
 lantern_testing = { path = "../lantern_testing" }
+lantern_code_annotation = { path = "../lantern_code_annotation" }
