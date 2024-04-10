@@ -1,6 +1,11 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
+
+mod module;
+pub mod symbol;
+pub mod symbols_map;
 
 use color_eyre::eyre::Result;
+
 use oxc_allocator::Allocator;
 use oxc_ast::{
     ast::{
@@ -8,19 +13,28 @@ use oxc_ast::{
     },
     Visit,
 };
-use oxc_span::Span;
 
 use lantern_parse_ts::parse_ts;
 use lantern_resolver::LanternResolver;
 
-pub fn build(entry_points: &Vec<PathBuf>) -> Result<TSSymbolsMap> {
+use module::LNModule;
+use symbol::{LNFileReference, LNSymbol, LNSymbolData};
+use symbols_map::LNSymbolsMap;
+
+pub struct LNVisitor<'a> {
+    module_id: usize,
+    parent_path: PathBuf,
+    symbols_map: &'a mut LNSymbolsMap,
+}
+
+pub fn build_symbols_map(entry_points: &Vec<PathBuf>) -> Result<LNSymbolsMap> {
     let resolver = LanternResolver::new();
-    let mut ts_s = TSSymbolsMap::new(resolver);
+    let mut ln_symbols_map = LNSymbolsMap::new(resolver);
     let allocator = Allocator::default();
 
     for entry_point in entry_points {
         let path = entry_point.canonicalize()?;
-        ts_s.add_module(TSModule {
+        ln_symbols_map.add_module(LNModule {
             file_path: path,
             symbols: vec![],
             is_entry: true,
@@ -30,7 +44,7 @@ pub fn build(entry_points: &Vec<PathBuf>) -> Result<TSSymbolsMap> {
     let mut id = 0;
 
     loop {
-        let module = if let Some(module) = ts_s.get_module(id) {
+        let module = if let Some(module) = ln_symbols_map.get_module(id) {
             module
         } else {
             break;
@@ -39,111 +53,16 @@ pub fn build(entry_points: &Vec<PathBuf>) -> Result<TSSymbolsMap> {
         let path = module.file_path.clone();
         let program = parse_ts(&allocator, &source, &path)?;
         let parent = module.file_path.parent().unwrap().to_path_buf();
-        let mut visitor = TSVisitor::new(id, parent, &mut ts_s);
+        let mut visitor = LNVisitor::new(id, parent, &mut ln_symbols_map);
         visitor.visit_program(&program);
         id += 1;
     }
 
-    return Ok(ts_s);
+    return Ok(ln_symbols_map);
 }
 
-#[derive(Debug)]
-pub struct TSSymbolsMap {
-    pub modules: Vec<TSModule>,
-    pub symbols: Vec<TSSymbol>,
-    path_to_module_id: HashMap<String, usize>,
-    sources: HashMap<usize, String>,
-    resolver: LanternResolver,
-}
-
-impl TSSymbolsMap {
-    pub fn new(resolver: LanternResolver) -> Self {
-        Self {
-            modules: Vec::new(),
-            symbols: Vec::new(),
-            path_to_module_id: HashMap::new(),
-            sources: HashMap::new(),
-            resolver,
-        }
-    }
-
-    pub fn add_module(&mut self, module: TSModule) -> Option<usize> {
-        if let Some(ext) = module.file_path.extension() {
-            if ext == "json" {
-                return None;
-            }
-        }
-        if self.has_module(module.file_path.to_str().unwrap()) {
-            return Some(self.path_to_module_id[module.file_path.to_str().unwrap()]);
-        }
-
-        let id = self.modules.len();
-        self.modules.push(module);
-        self.path_to_module_id
-            .insert(self.modules[id].file_path.to_str().unwrap().to_string(), id);
-        return Some(id);
-    }
-
-    pub fn get_module(&self, id: usize) -> Option<&TSModule> {
-        return self.modules.get(id);
-    }
-
-    pub fn has_module(&self, path: &str) -> bool {
-        return self.path_to_module_id.contains_key(path);
-    }
-
-    pub fn get_module_id(&self, path: &str) -> Option<usize> {
-        return self.path_to_module_id.get(path).copied();
-    }
-
-    pub fn get_module_source(&mut self, module_id: usize) -> &str {
-        if self.sources.contains_key(&module_id) {
-            &self.sources[&module_id]
-        } else {
-            let source = std::fs::read_to_string(&self.modules[module_id].file_path).unwrap();
-            self.sources.insert(module_id, source.clone());
-            &self.sources[&module_id]
-        }
-    }
-
-    pub fn read_span_from_module(&mut self, module_id: usize, span: &Span) -> &str {
-        let source = self.get_module_source(module_id);
-        return source[span.start as usize..span.end as usize].as_ref();
-    }
-
-    pub fn add_symbol(&mut self, module_id: usize, symbol: TSSymbol) -> usize {
-        let id = self.symbols.len();
-        self.symbols.push(symbol);
-        self.modules[module_id].symbols.push(id);
-        return id;
-    }
-
-    pub fn resolve(&self, parent_path: &PathBuf, path: String) -> Result<PathBuf> {
-        return self.resolver.resolve(parent_path, &path);
-    }
-
-    pub fn get_module_path(&self, module_id: usize) -> &PathBuf {
-        return &self.modules[module_id].file_path;
-    }
-
-    pub fn get_line_number_from_span(&mut self, module_id: usize, span: &Span) -> usize {
-        if span.start == 0 {
-            return 1;
-        }
-        let source = self.get_module_source(module_id);
-        let source = source[0..span.start as usize].to_string();
-        return source.lines().count();
-    }
-}
-
-struct TSVisitor<'a> {
-    module_id: usize,
-    parent_path: PathBuf,
-    symbols_map: &'a mut TSSymbolsMap,
-}
-
-impl<'a> TSVisitor<'a> {
-    pub fn new(file_id: usize, parent_path: PathBuf, ts_s: &'a mut TSSymbolsMap) -> Self {
+impl<'a> LNVisitor<'a> {
+    pub fn new(file_id: usize, parent_path: PathBuf, ts_s: &'a mut LNSymbolsMap) -> Self {
         return Self {
             parent_path,
             module_id: file_id,
@@ -152,7 +71,7 @@ impl<'a> TSVisitor<'a> {
     }
 }
 
-impl<'a> Visit<'a> for TSVisitor<'a> {
+impl<'a> Visit<'a> for LNVisitor<'a> {
     // export * from "./path";
     fn visit_export_all_declaration(&mut self, decl: &oxc_ast::ast::ExportAllDeclaration<'a>) {
         let maybe_path = self
@@ -166,7 +85,7 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
 
         let path = maybe_path.unwrap();
 
-        let module_id = self.symbols_map.add_module(TSModule {
+        let module_id = self.symbols_map.add_module(LNModule {
             file_path: path,
             symbols: vec![],
             is_entry: false,
@@ -178,9 +97,12 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
 
         self.symbols_map.add_symbol(
             self.module_id,
-            TSSymbol {
+            LNSymbol {
                 module_id: self.module_id,
-                symbol: TSSymbolData::ExportAll(FileReference::new(module_id.unwrap(), decl.span)),
+                symbol: LNSymbolData::ExportAll(LNFileReference::new(
+                    module_id.unwrap(),
+                    decl.span,
+                )),
             },
         );
     }
@@ -200,9 +122,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
             ExportDefaultDeclarationKind::Expression(_) => {
                 self.symbols_map.add_symbol(
                     self.module_id,
-                    TSSymbol {
+                    LNSymbol {
                         module_id: self.module_id,
-                        symbol: TSSymbolData::ExportDefaultExpr(decl.span.clone()),
+                        symbol: LNSymbolData::ExportDefaultExpr(decl.span.clone()),
                     },
                 );
             }
@@ -214,9 +136,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                 };
                 self.symbols_map.add_symbol(
                     self.module_id,
-                    TSSymbol {
+                    LNSymbol {
                         module_id: self.module_id,
-                        symbol: TSSymbolData::ExportDefaultClassDecl(name, class_decl.span.clone()),
+                        symbol: LNSymbolData::ExportDefaultClassDecl(name, class_decl.span.clone()),
                     },
                 );
             }
@@ -228,18 +150,18 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                 };
                 self.symbols_map.add_symbol(
                     self.module_id,
-                    TSSymbol {
+                    LNSymbol {
                         module_id: self.module_id,
-                        symbol: TSSymbolData::ExportDefaultFnDecl(name, fn_decl.span.clone()),
+                        symbol: LNSymbolData::ExportDefaultFnDecl(name, fn_decl.span.clone()),
                     },
                 );
             }
             ExportDefaultDeclarationKind::TSInterfaceDeclaration(ts_interface_decl) => {
                 self.symbols_map.add_symbol(
                     self.module_id,
-                    TSSymbol {
+                    LNSymbol {
                         module_id: self.module_id,
-                        symbol: TSSymbolData::ExportDefaultInterfaceDecl(
+                        symbol: LNSymbolData::ExportDefaultInterfaceDecl(
                             ts_interface_decl.id.name.to_string(),
                             ts_interface_decl.span.clone(),
                         ),
@@ -271,9 +193,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                             BindingPatternKind::BindingIdentifier(ident) => {
                                 self.symbols_map.add_symbol(
                                     self.module_id,
-                                    TSSymbol {
+                                    LNSymbol {
                                         module_id: self.module_id,
-                                        symbol: TSSymbolData::ExportDecl(
+                                        symbol: LNSymbolData::ExportDecl(
                                             ident.name.to_string(),
                                             ident.span.clone(),
                                         ),
@@ -288,18 +210,18 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                     let name = fn_decl.id.clone().unwrap().name.to_string();
                     self.symbols_map.add_symbol(
                         self.module_id,
-                        TSSymbol {
+                        LNSymbol {
                             module_id: self.module_id,
-                            symbol: TSSymbolData::ExportFnDecl(name, fn_decl.span.clone()),
+                            symbol: LNSymbolData::ExportFnDecl(name, fn_decl.span.clone()),
                         },
                     );
                 }
                 Declaration::ClassDeclaration(class_decl) => {
                     self.symbols_map.add_symbol(
                         self.module_id,
-                        TSSymbol {
+                        LNSymbol {
                             module_id: self.module_id,
-                            symbol: TSSymbolData::ExportClassDecl(
+                            symbol: LNSymbolData::ExportClassDecl(
                                 class_decl.id.clone().unwrap().name.to_string(),
                                 class_decl.span.clone(),
                             ),
@@ -309,9 +231,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                 Declaration::TSEnumDeclaration(ts_enum_decl) => {
                     self.symbols_map.add_symbol(
                         self.module_id,
-                        TSSymbol {
+                        LNSymbol {
                             module_id: self.module_id,
-                            symbol: TSSymbolData::ExportEnumDecl(
+                            symbol: LNSymbolData::ExportEnumDecl(
                                 ts_enum_decl.id.name.to_string(),
                                 ts_enum_decl.span.clone(),
                             ),
@@ -321,9 +243,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                 Declaration::TSInterfaceDeclaration(ts_interface_decl) => {
                     self.symbols_map.add_symbol(
                         self.module_id,
-                        TSSymbol {
+                        LNSymbol {
                             module_id: self.module_id,
-                            symbol: TSSymbolData::ExportInterfaceDecl(
+                            symbol: LNSymbolData::ExportInterfaceDecl(
                                 ts_interface_decl.id.name.to_string(),
                                 ts_interface_decl.span.clone(),
                             ),
@@ -333,9 +255,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                 Declaration::TSTypeAliasDeclaration(ts_type_alias_decl) => {
                     self.symbols_map.add_symbol(
                         self.module_id,
-                        TSSymbol {
+                        LNSymbol {
                             module_id: self.module_id,
-                            symbol: TSSymbolData::ExportTypeAliasDecl(
+                            symbol: LNSymbolData::ExportTypeAliasDecl(
                                 ts_type_alias_decl.id.name.to_string(),
                                 ts_type_alias_decl.span.clone(),
                             ),
@@ -357,7 +279,7 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
 
                 let path = maybe_path.unwrap();
 
-                let module_id = self.symbols_map.add_module(TSModule {
+                let module_id = self.symbols_map.add_module(LNModule {
                     file_path: path,
                     symbols: vec![],
                     is_entry: false,
@@ -365,7 +287,7 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                 if module_id.is_none() {
                     None
                 } else {
-                    Some(FileReference::new(module_id.unwrap(), src.span))
+                    Some(LNFileReference::new(module_id.unwrap(), src.span))
                 }
             } else {
                 None
@@ -377,9 +299,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
 
                 self.symbols_map.add_symbol(
                     self.module_id,
-                    TSSymbol {
+                    LNSymbol {
                         module_id: self.module_id,
-                        symbol: TSSymbolData::ExportNamed(
+                        symbol: LNSymbolData::ExportNamed(
                             local,
                             exported,
                             spec.span.clone(),
@@ -403,7 +325,7 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
 
         let path = maybe_path.unwrap();
 
-        let module_id = self.symbols_map.add_module(TSModule {
+        let module_id = self.symbols_map.add_module(LNModule {
             file_path: path,
             symbols: vec![],
             is_entry: false,
@@ -413,7 +335,7 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
             return;
         }
 
-        let src = FileReference::new(module_id.unwrap(), import_decl.source.span);
+        let src = LNFileReference::new(module_id.unwrap(), import_decl.source.span);
         let type_only = import_decl.import_kind.is_type();
         if let Some(specifiers) = &import_decl.specifiers {
             for spec in specifiers {
@@ -422,9 +344,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                     ImportDeclarationSpecifier::ImportDefaultSpecifier(spec) => {
                         self.symbols_map.add_symbol(
                             self.module_id,
-                            TSSymbol {
+                            LNSymbol {
                                 module_id: self.module_id,
-                                symbol: TSSymbolData::ImportDefault(
+                                symbol: LNSymbolData::ImportDefault(
                                     spec.local.name.to_string(),
                                     spec.span,
                                     src.clone(),
@@ -437,9 +359,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                     ImportDeclarationSpecifier::ImportNamespaceSpecifier(spec) => {
                         self.symbols_map.add_symbol(
                             self.module_id,
-                            TSSymbol {
+                            LNSymbol {
                                 module_id: self.module_id,
-                                symbol: TSSymbolData::ImportStar(
+                                symbol: LNSymbolData::ImportStar(
                                     spec.local.name.to_string(),
                                     spec.span,
                                     src.clone(),
@@ -452,9 +374,9 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
                     ImportDeclarationSpecifier::ImportSpecifier(spec) => {
                         self.symbols_map.add_symbol(
                             self.module_id,
-                            TSSymbol {
+                            LNSymbol {
                                 module_id: self.module_id,
-                                symbol: TSSymbolData::ImportNamed(
+                                symbol: LNSymbolData::ImportNamed(
                                     spec.local.name.to_string(),
                                     spec.span,
                                     src.clone(),
@@ -467,95 +389,4 @@ impl<'a> Visit<'a> for TSVisitor<'a> {
             }
         }
     }
-}
-
-#[derive(Debug)]
-pub struct TSModule {
-    pub file_path: PathBuf,
-    pub symbols: Vec<usize>,
-    pub is_entry: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct TSSymbol {
-    pub module_id: usize,
-    pub symbol: TSSymbolData,
-}
-
-impl TSSymbol {
-    pub fn get_span(&self) -> &Span {
-        match &self.symbol {
-            TSSymbolData::ExportAll(file_ref) => &file_ref.span,
-            TSSymbolData::ExportClassDecl(_, span) => span,
-            TSSymbolData::ExportDecl(_, span) => span,
-            TSSymbolData::ExportDefaultClassDecl(_, span) => span,
-            TSSymbolData::ExportDefaultExpr(span) => span,
-            TSSymbolData::ExportDefaultFnDecl(_, span) => span,
-            TSSymbolData::ExportDefaultInterfaceDecl(_, span) => span,
-            TSSymbolData::ExportEnumDecl(_, span) => span,
-            TSSymbolData::ExportFnDecl(_, span) => span,
-            TSSymbolData::ExportInterfaceDecl(_, span) => span,
-            TSSymbolData::ExportTypeAliasDecl(_, span) => span,
-            TSSymbolData::ExportNamed(_, _, span, _) => span,
-            TSSymbolData::ImportDefault(_, span, _, _) => span,
-            TSSymbolData::ImportStar(_, span, _, _) => span,
-            TSSymbolData::ImportNamed(_, span, _, _) => span,
-        }
-    }
-
-    pub fn get_name(&self) -> Option<&str> {
-        match &self.symbol {
-            TSSymbolData::ExportAll(_) => None,
-            TSSymbolData::ExportClassDecl(name, _) => Some(name),
-            TSSymbolData::ExportDecl(name, _) => Some(name),
-            TSSymbolData::ExportDefaultClassDecl(name, _) => name.as_deref(),
-            TSSymbolData::ExportDefaultExpr(_) => None,
-            TSSymbolData::ExportDefaultFnDecl(name, _) => name.as_deref(),
-            TSSymbolData::ExportDefaultInterfaceDecl(name, _) => Some(name),
-            TSSymbolData::ExportEnumDecl(name, _) => Some(name),
-            TSSymbolData::ExportFnDecl(name, _) => Some(name),
-            TSSymbolData::ExportInterfaceDecl(name, _) => Some(name),
-            TSSymbolData::ExportTypeAliasDecl(name, _) => Some(name),
-            TSSymbolData::ExportNamed(_, name, _, _) => Some(name),
-            TSSymbolData::ImportDefault(name, _, _, _) => Some(name),
-            TSSymbolData::ImportStar(name, _, _, _) => Some(name),
-            TSSymbolData::ImportNamed(name, _, _, _) => Some(name),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct FileReference {
-    pub module_id: usize,
-    pub span: Span,
-}
-
-impl FileReference {
-    pub fn new(module_id: usize, span: Span) -> Self {
-        Self { module_id, span }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum TSSymbolData {
-    ExportAll(FileReference),
-
-    ExportDefaultExpr(Span),
-    ExportNamed(String, String, Span, Option<FileReference>),
-
-    ExportDecl(String, Span),
-    ExportFnDecl(String, Span),
-    ExportClassDecl(String, Span),
-
-    ExportEnumDecl(String, Span),
-    ExportInterfaceDecl(String, Span),
-    ExportTypeAliasDecl(String, Span),
-
-    ExportDefaultClassDecl(Option<String>, Span),
-    ExportDefaultFnDecl(Option<String>, Span),
-    ExportDefaultInterfaceDecl(String, Span),
-
-    ImportDefault(String, Span, FileReference, bool),
-    ImportStar(String, Span, FileReference, bool),
-    ImportNamed(String, Span, FileReference, bool),
 }

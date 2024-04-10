@@ -3,48 +3,49 @@ use std::{collections::HashMap, path::PathBuf};
 use color_eyre::eyre::Result;
 
 use lantern_code_annotation::CodeAnnotation;
-use lantern_symbols_map::{self, TSSymbol, TSSymbolData};
+use lantern_symbols_map::symbol::LNSymbol;
+use lantern_symbols_map::symbol::LNSymbolData;
 
 pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
-    let mut ln_map = lantern_symbols_map::build(&entry_points)?;
-    let mut exports: Vec<TSSymbol> = Vec::new();
+    let mut ln_map = lantern_symbols_map::build_symbols_map(&entry_points)?;
+    let mut exports: Vec<LNSymbol> = Vec::new();
     let mut annotations: HashMap<usize, CodeAnnotation> = HashMap::new();
 
     for symbol in &ln_map.symbols {
         match &symbol.symbol {
-            TSSymbolData::ExportAll(_)
-            | TSSymbolData::ExportClassDecl(_, _)
-            | TSSymbolData::ExportDecl(_, _)
-            | TSSymbolData::ExportDefaultClassDecl(_, _)
-            | TSSymbolData::ExportDefaultExpr(_)
-            | TSSymbolData::ExportDefaultFnDecl(_, _)
-            | TSSymbolData::ExportDefaultInterfaceDecl(_, _)
-            | TSSymbolData::ExportEnumDecl(_, _)
-            | TSSymbolData::ExportFnDecl(_, _)
-            | TSSymbolData::ExportInterfaceDecl(_, _)
-            | TSSymbolData::ExportNamed(_, _, _, _)
-            | TSSymbolData::ExportTypeAliasDecl(_, _) => {
+            LNSymbolData::ExportAll(_)
+            | LNSymbolData::ExportClassDecl(_, _)
+            | LNSymbolData::ExportDecl(_, _)
+            | LNSymbolData::ExportDefaultClassDecl(_, _)
+            | LNSymbolData::ExportDefaultExpr(_)
+            | LNSymbolData::ExportDefaultFnDecl(_, _)
+            | LNSymbolData::ExportDefaultInterfaceDecl(_, _)
+            | LNSymbolData::ExportEnumDecl(_, _)
+            | LNSymbolData::ExportFnDecl(_, _)
+            | LNSymbolData::ExportInterfaceDecl(_, _)
+            | LNSymbolData::ExportNamed(_, _, _, _)
+            | LNSymbolData::ExportTypeAliasDecl(_, _) => {
                 exports.push(symbol.clone());
             }
-            TSSymbolData::ImportStar(_, _, _, _)
-            | TSSymbolData::ImportNamed(_, _, _, _)
-            | TSSymbolData::ImportDefault(_, _, _, _) => {}
+            LNSymbolData::ImportStar(_, _, _, _)
+            | LNSymbolData::ImportNamed(_, _, _, _)
+            | LNSymbolData::ImportDefault(_, _, _, _) => {}
         }
     }
 
     for symbol in &ln_map.symbols {
         match &symbol.symbol {
-            TSSymbolData::ImportDefault(_, _, file_ref, _) => {
+            LNSymbolData::ImportDefault(_, _, file_ref, _) => {
                 let idx = exports.iter().position(|x| {
                     if x.module_id != file_ref.module_id {
                         return false;
                     }
 
                     match &x.symbol {
-                        TSSymbolData::ExportDefaultClassDecl(_, _)
-                        | TSSymbolData::ExportDefaultExpr(_)
-                        | TSSymbolData::ExportDefaultFnDecl(_, _)
-                        | TSSymbolData::ExportDefaultInterfaceDecl(_, _) => {
+                        LNSymbolData::ExportDefaultClassDecl(_, _)
+                        | LNSymbolData::ExportDefaultExpr(_)
+                        | LNSymbolData::ExportDefaultFnDecl(_, _)
+                        | LNSymbolData::ExportDefaultInterfaceDecl(_, _) => {
                             return true;
                         }
                         _ => return false,
@@ -55,7 +56,7 @@ pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
                     exports.remove(idx);
                 }
             }
-            TSSymbolData::ImportNamed(i_name, _, file_ref, _) => {
+            LNSymbolData::ImportNamed(i_name, _, file_ref, _) => {
                 let idx = exports.iter().position(|x| {
                     if x.module_id != file_ref.module_id {
                         return false;
@@ -72,7 +73,7 @@ pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
                     exports.remove(idx);
                 }
             }
-            TSSymbolData::ExportNamed(i_name, o_name, _, Some(file_ref)) => {
+            LNSymbolData::ExportNamed(i_name, o_name, _, Some(file_ref)) => {
                 let idx = exports.iter().position(|x| {
                     if x.module_id != file_ref.module_id {
                         return false;
@@ -82,7 +83,7 @@ pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
                         return e_name == o_name;
                     }
 
-                    if let TSSymbolData::ExportDefaultExpr(_) = x.symbol {
+                    if let LNSymbolData::ExportDefaultExpr(_) = x.symbol {
                         return i_name == "default";
                     }
 
@@ -93,7 +94,7 @@ pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
                     exports.remove(idx);
                 }
             }
-            TSSymbolData::ImportStar(_, _, file_ref, _) => {
+            LNSymbolData::ImportStar(_, _, file_ref, _) => {
                 exports = exports
                     .iter()
                     .filter(|x| {

@@ -5,17 +5,18 @@ use std::{
 
 use color_eyre::eyre::Result;
 
-use lantern_symbols_map::{TSSymbolData, TSSymbolsMap};
+use lantern_symbols_map::symbol::LNSymbolData;
+use lantern_symbols_map::symbols_map::LNSymbolsMap;
 
 #[derive(Debug)]
 pub struct LanternFileDependencyMap {
-    pub symbols_map: TSSymbolsMap,
+    pub symbols_map: LNSymbolsMap,
     pub dependency_map: HashMap<usize, HashSet<usize>>,
     pub inverse_dependency_map: HashMap<usize, HashSet<usize>>,
 }
 
 impl LanternFileDependencyMap {
-    pub fn new(symbols_map: TSSymbolsMap) -> Self {
+    pub fn new(symbols_map: LNSymbolsMap) -> Self {
         Self {
             symbols_map,
             dependency_map: HashMap::new(),
@@ -32,7 +33,7 @@ impl LanternFileDependencyMap {
                 let symbol = &self.symbols_map.symbols[*symbol_id];
 
                 match &symbol.symbol {
-                    TSSymbolData::ExportAll(file_ref) => {
+                    LNSymbolData::ExportAll(file_ref) => {
                         self.add_dependency(
                             &mut dependency_map,
                             &mut inverse_dependency_map,
@@ -40,7 +41,7 @@ impl LanternFileDependencyMap {
                             file_ref.module_id,
                         );
                     }
-                    TSSymbolData::ExportNamed(_, _, _, Some(file_ref)) => {
+                    LNSymbolData::ExportNamed(_, _, _, Some(file_ref)) => {
                         self.add_dependency(
                             &mut dependency_map,
                             &mut inverse_dependency_map,
@@ -48,9 +49,9 @@ impl LanternFileDependencyMap {
                             file_ref.module_id,
                         );
                     }
-                    TSSymbolData::ImportDefault(_, _, file_ref, _)
-                    | TSSymbolData::ImportStar(_, _, file_ref, _)
-                    | TSSymbolData::ImportNamed(_, _, file_ref, _) => {
+                    LNSymbolData::ImportDefault(_, _, file_ref, _)
+                    | LNSymbolData::ImportStar(_, _, file_ref, _)
+                    | LNSymbolData::ImportNamed(_, _, file_ref, _) => {
                         self.add_dependency(
                             &mut dependency_map,
                             &mut inverse_dependency_map,
