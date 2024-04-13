@@ -153,8 +153,8 @@ mod tests {
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
-        assert_eq!(span.start, 7);
-        assert_eq!(span.end, 21);
+        assert_eq!(span.start, 13);
+        assert_eq!(span.end, 18);
 
         assert_eq!(symbol.get_name().unwrap(), "Hello");
     }
@@ -170,10 +170,27 @@ mod tests {
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
-        assert_eq!(span.start, 7);
-        assert_eq!(span.end, 18);
+        assert_eq!(span.start, 12);
+        assert_eq!(span.end, 13);
 
         assert_eq!(symbol.get_name().unwrap(), "A");
+    }
+
+    #[test]
+    fn exports_decl_type_union() {
+        let path_buf = load_fixture!("exports_decl_type_union.ts");
+        let ep = vec![path_buf];
+        let mut sm = build_symbols_map(&ep).unwrap();
+        assert_eq!(sm.symbols.len(), 1);
+
+        let symbol = sm.symbols[0].clone();
+        let span = symbol.get_span();
+        debug_symbol_span(&symbol, &mut sm);
+
+        assert_eq!(span.start, 59);
+        assert_eq!(span.end, 75);
+
+        assert_eq!(symbol.get_name().unwrap(), "CodeBlockContent");
     }
 
     #[test]
@@ -187,8 +204,8 @@ mod tests {
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
-        assert_eq!(span.start, 7);
-        assert_eq!(span.end, 16);
+        assert_eq!(span.start, 12);
+        assert_eq!(span.end, 13);
 
         assert_eq!(symbol.get_name().unwrap(), "B");
     }
@@ -204,8 +221,8 @@ mod tests {
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
-        assert_eq!(span.start, 7);
-        assert_eq!(span.end, 22);
+        assert_eq!(span.start, 17);
+        assert_eq!(span.end, 19);
 
         assert_eq!(symbol.get_name().unwrap(), "IC");
     }
@@ -233,6 +250,40 @@ mod tests {
         assert_eq!(span.end, 23);
 
         assert_eq!(symbol.get_name().is_none(), true);
+    }
+
+    #[test]
+    fn exports_default_function_decl() {
+        let path_buf = load_fixture!("exports_default_function_decl.ts");
+        let ep = vec![path_buf];
+        let mut sm = build_symbols_map(&ep).unwrap();
+        assert_eq!(sm.symbols.len(), 1);
+
+        let symbol = sm.symbols[0].clone();
+        let span = symbol.get_span();
+        debug_symbol_span(&symbol, &mut sm);
+
+        assert_eq!(span.start, 24);
+        assert_eq!(span.end, 29);
+
+        assert_eq!(symbol.get_name().unwrap(), "hello");
+    }
+
+    #[test]
+    fn exports_default_interface_decl() {
+        let path_buf = load_fixture!("exports_default_interface_decl.ts");
+        let ep = vec![path_buf];
+        let mut sm = build_symbols_map(&ep).unwrap();
+        assert_eq!(sm.symbols.len(), 1);
+
+        let symbol = sm.symbols[0].clone();
+        let span = symbol.get_span();
+        debug_symbol_span(&symbol, &mut sm);
+
+        assert_eq!(span.start, 25);
+        assert_eq!(span.end, 27);
+
+        assert_eq!(symbol.get_name().unwrap(), "IC");
     }
 
     #[test]

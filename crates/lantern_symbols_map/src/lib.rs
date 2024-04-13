@@ -148,11 +148,16 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                 } else {
                     None
                 };
+                let span = if let Some(ident) = &fn_decl.id {
+                    ident.span.clone()
+                } else {
+                    fn_decl.span.clone()
+                };
                 self.symbols_map.add_symbol(
                     self.module_id,
                     LNSymbol {
                         module_id: self.module_id,
-                        symbol: LNSymbolData::ExportDefaultFnDecl(name, fn_decl.span.clone()),
+                        symbol: LNSymbolData::ExportDefaultFnDecl(name, span),
                     },
                 );
             }
@@ -163,7 +168,7 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                         module_id: self.module_id,
                         symbol: LNSymbolData::ExportDefaultInterfaceDecl(
                             ts_interface_decl.id.name.to_string(),
-                            ts_interface_decl.span.clone(),
+                            ts_interface_decl.id.span.clone(),
                         ),
                     },
                 );
@@ -221,9 +226,10 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                         self.module_id,
                         LNSymbol {
                             module_id: self.module_id,
+                            // TODO: fix unwrap
                             symbol: LNSymbolData::ExportClassDecl(
                                 class_decl.id.clone().unwrap().name.to_string(),
-                                class_decl.span.clone(),
+                                class_decl.id.clone().unwrap().span.clone(),
                             ),
                         },
                     );
@@ -235,7 +241,7 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                             module_id: self.module_id,
                             symbol: LNSymbolData::ExportEnumDecl(
                                 ts_enum_decl.id.name.to_string(),
-                                ts_enum_decl.span.clone(),
+                                ts_enum_decl.id.span.clone(),
                             ),
                         },
                     );
@@ -247,7 +253,7 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                             module_id: self.module_id,
                             symbol: LNSymbolData::ExportInterfaceDecl(
                                 ts_interface_decl.id.name.to_string(),
-                                ts_interface_decl.span.clone(),
+                                ts_interface_decl.id.span.clone(),
                             ),
                         },
                     );
@@ -259,7 +265,7 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                             module_id: self.module_id,
                             symbol: LNSymbolData::ExportTypeAliasDecl(
                                 ts_type_alias_decl.id.name.to_string(),
-                                ts_type_alias_decl.span.clone(),
+                                ts_type_alias_decl.id.span.clone(),
                             ),
                         },
                     );
