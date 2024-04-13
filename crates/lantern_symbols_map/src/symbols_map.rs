@@ -92,7 +92,7 @@ impl LNSymbolsMap {
             return 1;
         }
         let source = self.get_module_source(module_id);
-        let source = source[0..span.start as usize].to_string();
+        let source = source[0..(span.start + 1) as usize].to_string();
         return source.lines().count();
     }
 }
