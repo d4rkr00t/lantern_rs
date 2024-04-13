@@ -27,6 +27,8 @@ mod tests {
 
         assert_eq!(span.start, 7);
         assert_eq!(span.end, 12);
+
+        assert_eq!(symbol.get_name().unwrap(), "React");
     }
 
     #[test]
@@ -42,6 +44,8 @@ mod tests {
 
         assert_eq!(span.start, 7);
         assert_eq!(span.end, 20);
+
+        assert_eq!(symbol.get_name().unwrap(), "ReactDOM");
     }
 
     #[test]
@@ -57,6 +61,8 @@ mod tests {
 
         assert_eq!(span.start, 9);
         assert_eq!(span.end, 17);
+
+        assert_eq!(symbol.get_name().unwrap(), "useState");
     }
 
     #[test]
@@ -72,6 +78,8 @@ mod tests {
 
         assert_eq!(span.start, 9);
         assert_eq!(span.end, 33);
+
+        assert_eq!(symbol.get_name().unwrap(), "useSomething");
     }
 
     #[test]
@@ -87,6 +95,8 @@ mod tests {
 
         assert_eq!(span.start, 14);
         assert_eq!(span.end, 15);
+
+        assert_eq!(symbol.get_name().unwrap(), "A");
     }
 
     #[test]
@@ -103,12 +113,16 @@ mod tests {
         assert_eq!(span.start, 9);
         assert_eq!(span.end, 16);
 
+        assert_eq!(symbol.get_name().unwrap(), "Aa");
+
         let symbol = sm.symbols[1].clone();
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
         assert_eq!(span.start, 18);
         assert_eq!(span.end, 24);
+
+        assert_eq!(symbol.get_name().unwrap(), "C");
     }
 
     #[test]
@@ -124,6 +138,8 @@ mod tests {
 
         assert_eq!(span.start, 12);
         assert_eq!(span.end, 17);
+
+        assert_eq!(symbol.get_name().unwrap(), "Hello");
     }
 
     #[test]
@@ -139,6 +155,8 @@ mod tests {
 
         assert_eq!(span.start, 12);
         assert_eq!(span.end, 23);
+
+        assert_eq!(symbol.get_name().unwrap(), "Hello2");
     }
 
     #[test]
@@ -154,5 +172,7 @@ mod tests {
 
         assert_eq!(span.start, 9);
         assert_eq!(span.end, 16);
+
+        assert_eq!(symbol.get_name().unwrap(), "Ab");
     }
 }
