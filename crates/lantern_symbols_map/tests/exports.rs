@@ -27,6 +27,8 @@ mod tests {
 
         assert_eq!(span.start, 0);
         assert_eq!(span.end, 18);
+
+        assert_eq!(symbol.get_name().is_none(), true);
     }
 
     #[test]
@@ -42,6 +44,8 @@ mod tests {
 
         assert_eq!(span.start, 0);
         assert_eq!(span.end, 39);
+
+        assert_eq!(symbol.get_name().is_none(), true);
     }
 
     #[test]
@@ -57,6 +61,8 @@ mod tests {
 
         assert_eq!(span.start, 7);
         assert_eq!(span.end, 26);
+
+        assert_eq!(symbol.get_name().unwrap(), "hello");
     }
 
     #[test]
@@ -72,6 +78,8 @@ mod tests {
 
         assert_eq!(span.start, 13);
         assert_eq!(span.end, 19);
+
+        assert_eq!(symbol.get_name().unwrap(), "hello2");
     }
 
     #[test]
@@ -87,6 +95,8 @@ mod tests {
 
         assert_eq!(span.start, 13);
         assert_eq!(span.end, 14);
+
+        assert_eq!(symbol.get_name().unwrap(), "a");
     }
 
     #[test]
@@ -102,6 +112,8 @@ mod tests {
 
         assert_eq!(span.start, 11);
         assert_eq!(span.end, 12);
+
+        assert_eq!(symbol.get_name().unwrap(), "b");
     }
 
     #[test]
@@ -118,12 +130,16 @@ mod tests {
         assert_eq!(span.start, 11);
         assert_eq!(span.end, 12);
 
+        assert_eq!(symbol.get_name().unwrap(), "c");
+
         let symbol = sm.symbols[1].clone();
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
         assert_eq!(span.start, 20);
         assert_eq!(span.end, 21);
+
+        assert_eq!(symbol.get_name().unwrap(), "d");
     }
 
     #[test]
@@ -139,6 +155,8 @@ mod tests {
 
         assert_eq!(span.start, 7);
         assert_eq!(span.end, 21);
+
+        assert_eq!(symbol.get_name().unwrap(), "Hello");
     }
 
     #[test]
@@ -154,6 +172,8 @@ mod tests {
 
         assert_eq!(span.start, 7);
         assert_eq!(span.end, 18);
+
+        assert_eq!(symbol.get_name().unwrap(), "A");
     }
 
     #[test]
@@ -169,6 +189,8 @@ mod tests {
 
         assert_eq!(span.start, 7);
         assert_eq!(span.end, 16);
+
+        assert_eq!(symbol.get_name().unwrap(), "B");
     }
 
     #[test]
@@ -184,6 +206,8 @@ mod tests {
 
         assert_eq!(span.start, 7);
         assert_eq!(span.end, 22);
+
+        assert_eq!(symbol.get_name().unwrap(), "IC");
     }
 
     #[test]
@@ -207,6 +231,8 @@ mod tests {
 
         assert_eq!(span.start, 15);
         assert_eq!(span.end, 23);
+
+        assert_eq!(symbol.get_name().is_none(), true);
     }
 
     #[test]
@@ -222,6 +248,8 @@ mod tests {
 
         assert_eq!(span.start, 9);
         assert_eq!(span.end, 16);
+
+        assert_eq!(symbol.get_name().unwrap(), "default");
     }
 
     #[test]
@@ -238,12 +266,16 @@ mod tests {
         assert_eq!(span.start, 9);
         assert_eq!(span.end, 10);
 
+        assert_eq!(symbol.get_name().unwrap(), "a");
+
         let symbol = sm.symbols[1].clone();
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
         assert_eq!(span.start, 12);
         assert_eq!(span.end, 13);
+
+        assert_eq!(symbol.get_name().unwrap(), "b");
     }
 
     #[test]
@@ -260,12 +292,16 @@ mod tests {
         assert_eq!(span.start, 9);
         assert_eq!(span.end, 16);
 
+        assert_eq!(symbol.get_name().unwrap(), "a2");
+
         let symbol = sm.symbols[1].clone();
         let span = symbol.get_span();
         debug_symbol_span(&symbol, &mut sm);
 
         assert_eq!(span.start, 18);
         assert_eq!(span.end, 25);
+
+        assert_eq!(symbol.get_name().unwrap(), "b2");
     }
 
     #[test]
@@ -281,5 +317,7 @@ mod tests {
 
         assert_eq!(span.start, 23);
         assert_eq!(span.end, 24);
+
+        assert_eq!(symbol.get_name().unwrap(), "c");
     }
 }
