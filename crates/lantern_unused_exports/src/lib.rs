@@ -69,7 +69,7 @@ pub fn find_unused_exports(ln_map: &LNSymbolsMap) -> Result<Vec<LNSymbol>> {
                     exports.remove(idx);
                 }
             }
-            LNSymbolData::ExportNamed(i_name, o_name, _, Some(file_ref)) => {
+            LNSymbolData::ExportNamed(i_name, _, _, Some(file_ref)) => {
                 let idx = exports.iter().position(|x| {
                     if x.module_id != file_ref.module_id {
                         return false;
