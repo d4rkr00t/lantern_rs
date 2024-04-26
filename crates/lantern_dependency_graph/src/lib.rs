@@ -51,7 +51,7 @@ impl LanternFileDependencyMap {
                     }
                     LNSymbolData::ImportDefault(_, _, file_ref, _)
                     | LNSymbolData::ImportStar(_, _, file_ref, _)
-                    | LNSymbolData::ImportNamed(_, _, file_ref, _) => {
+                    | LNSymbolData::ImportNamed(_, _, _, file_ref, _) => {
                         self.add_dependency(
                             &mut dependency_map,
                             &mut inverse_dependency_map,

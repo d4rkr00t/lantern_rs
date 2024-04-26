@@ -49,6 +49,23 @@ mod tests {
     }
 
     #[test]
+    fn imports_named() {
+        let path_buf = load_fixture!("imports_named.ts");
+        let ep = vec![path_buf];
+        let mut sm = build_symbols_map(&ep).unwrap();
+        assert_eq!(sm.symbols.len(), 1);
+
+        let symbol = sm.symbols[0].clone();
+        let span = symbol.get_span();
+        debug_symbol_span(&symbol, &mut sm);
+
+        assert_eq!(span.start, 9);
+        assert_eq!(span.end, 26);
+
+        assert_eq!(symbol.get_name().unwrap(), "hello");
+    }
+
+    #[test]
     fn imports_declaration_specifier() {
         let path_buf = load_fixture!("imports_declaration_specifier.ts");
         let ep = vec![path_buf];

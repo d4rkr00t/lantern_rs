@@ -23,7 +23,7 @@ impl LNSymbol {
             LNSymbolData::ExportNamed(_, _, span, _) => span,
             LNSymbolData::ImportDefault(_, span, _, _) => span,
             LNSymbolData::ImportStar(_, span, _, _) => span,
-            LNSymbolData::ImportNamed(_, span, _, _) => span,
+            LNSymbolData::ImportNamed(_, _, span, _, _) => span,
         }
     }
 
@@ -43,7 +43,7 @@ impl LNSymbol {
             LNSymbolData::ExportNamed(_, name, _, _) => Some(name),
             LNSymbolData::ImportDefault(name, _, _, _) => Some(name),
             LNSymbolData::ImportStar(name, _, _, _) => Some(name),
-            LNSymbolData::ImportNamed(name, _, _, _) => Some(name),
+            LNSymbolData::ImportNamed(name, _, _, _, _) => Some(name),
         }
     }
 }
@@ -69,7 +69,7 @@ pub enum LNSymbolData {
 
     ImportDefault(String, Span, LNFileReference, bool),
     ImportStar(String, Span, LNFileReference, bool),
-    ImportNamed(String, Span, LNFileReference, bool),
+    ImportNamed(String, String, Span, LNFileReference, bool),
 }
 
 #[derive(Debug, Clone)]

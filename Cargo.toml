@@ -6,7 +6,8 @@ members = [
   "crates/lantern_parse_ts",
   "crates/lantern_resolver",
   "crates/lantern_symbols_map",
-  "crates/lantern_testing",
+  "crates/lantern_testing", 
+  "crates/lantern_unused_exports",
 ]
 
 resolver = "2"

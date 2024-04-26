@@ -377,6 +377,7 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                         );
                     }
                     // import { useState } from "react";
+                    // import { useState as hello } from "react";
                     ImportDeclarationSpecifier::ImportSpecifier(spec) => {
                         self.symbols_map.add_symbol(
                             self.module_id,
@@ -384,6 +385,7 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                                 module_id: self.module_id,
                                 symbol: LNSymbolData::ImportNamed(
                                     spec.local.name.to_string(),
+                                    spec.imported.name().to_string(),
                                     spec.span,
                                     src.clone(),
                                     type_only || spec.import_kind.is_type(),
