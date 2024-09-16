@@ -21,6 +21,12 @@ enum Commands {
         path: Vec<PathBuf>,
     },
 
+    /// Find files with re-exports
+    FilesWithReExports {
+        #[arg(required = true)]
+        path: Vec<PathBuf>,
+    },
+
     /// Build a dependency graph for a project
     Depgraph {
         #[arg(required = true)]
@@ -44,6 +50,9 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::UnusedExports { path } => {
             commands::unused_exports::analyze(path).unwrap();
+        }
+        Commands::FilesWithReExports { path } => {
+            commands::files_with_reexports::analyze(path).unwrap();
         }
         Commands::Depgraph { path } => {
             commands::depgraph::build(path).unwrap();
