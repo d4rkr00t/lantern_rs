@@ -15,6 +15,8 @@ pub fn find_unused_exports(ln_map: &LNSymbolsMap) -> Result<Vec<LNSymbol>> {
             | LNSymbolData::ExportDefaultClassDecl(_, _)
             | LNSymbolData::ExportDefaultExpr(_)
             | LNSymbolData::ExportDefaultFnDecl(_, _)
+            | LNSymbolData::ExportDefaultIdentifier(_, _)
+            | LNSymbolData::ExportDefaultCallExpression(_, _)
             | LNSymbolData::ExportDefaultInterfaceDecl(_, _)
             | LNSymbolData::ExportEnumDecl(_, _)
             | LNSymbolData::ExportFnDecl(_, _)
@@ -24,6 +26,7 @@ pub fn find_unused_exports(ln_map: &LNSymbolsMap) -> Result<Vec<LNSymbol>> {
                 exports.push(symbol.clone());
             }
             LNSymbolData::ImportStar(_, _, _, _)
+            | LNSymbolData::ExportDefaultConditionalExpression(_, _, _)
             | LNSymbolData::ImportNamed(_, _, _, _, _)
             | LNSymbolData::ImportDefault(_, _, _, _) => {}
         }
@@ -41,6 +44,9 @@ pub fn find_unused_exports(ln_map: &LNSymbolsMap) -> Result<Vec<LNSymbol>> {
                         LNSymbolData::ExportDefaultClassDecl(_, _)
                         | LNSymbolData::ExportDefaultExpr(_)
                         | LNSymbolData::ExportDefaultFnDecl(_, _)
+                        | LNSymbolData::ExportDefaultIdentifier(_, _)
+                        | LNSymbolData::ExportDefaultCallExpression(_, _)
+                        | LNSymbolData::ExportDefaultConditionalExpression(_, _, _)
                         | LNSymbolData::ExportDefaultInterfaceDecl(_, _) => {
                             return true;
                         }
@@ -56,6 +62,15 @@ pub fn find_unused_exports(ln_map: &LNSymbolsMap) -> Result<Vec<LNSymbol>> {
                 let idx = exports.iter().position(|x| {
                     if x.module_id != file_ref.module_id {
                         return false;
+                    }
+
+                    match &x.symbol {
+                        LNSymbolData::ExportAll(_) => {
+                            println!("ExportAll {:#?}", x);
+                            println!("Module {:#?}", ln_map.get_module(x.module_id));
+                            return true;
+                        }
+                        _ => {}
                     }
 
                     if let Some(e_name) = x.get_name() {

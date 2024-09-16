@@ -16,6 +16,9 @@ impl LNSymbol {
             LNSymbolData::ExportDefaultExpr(span) => span,
             LNSymbolData::ExportDefaultFnDecl(_, span) => span,
             LNSymbolData::ExportDefaultInterfaceDecl(_, span) => span,
+            LNSymbolData::ExportDefaultCallExpression(_, span) => span,
+            LNSymbolData::ExportDefaultConditionalExpression(_, _, span) => span,
+            LNSymbolData::ExportDefaultIdentifier(_, span) => span,
             LNSymbolData::ExportEnumDecl(_, span) => span,
             LNSymbolData::ExportFnDecl(_, span) => span,
             LNSymbolData::ExportInterfaceDecl(_, span) => span,
@@ -33,6 +36,9 @@ impl LNSymbol {
             LNSymbolData::ExportClassDecl(name, _) => Some(name),
             LNSymbolData::ExportDecl(name, _) => Some(name),
             LNSymbolData::ExportDefaultClassDecl(name, _) => name.as_deref(),
+            LNSymbolData::ExportDefaultCallExpression(name, _) => name.as_deref(),
+            LNSymbolData::ExportDefaultConditionalExpression(_, _, _) => None,
+            LNSymbolData::ExportDefaultIdentifier(name, _) => Some(name),
             LNSymbolData::ExportDefaultExpr(_) => None,
             LNSymbolData::ExportDefaultFnDecl(name, _) => name.as_deref(),
             LNSymbolData::ExportDefaultInterfaceDecl(name, _) => Some(name),
@@ -52,7 +58,6 @@ impl LNSymbol {
 pub enum LNSymbolData {
     ExportAll(LNFileReference),
 
-    ExportDefaultExpr(Span),
     ExportNamed(String, String, Span, Option<LNFileReference>),
 
     ExportDecl(String, Span),
@@ -63,9 +68,13 @@ pub enum LNSymbolData {
     ExportInterfaceDecl(String, Span),
     ExportTypeAliasDecl(String, Span),
 
+    ExportDefaultExpr(Span),
     ExportDefaultClassDecl(Option<String>, Span),
     ExportDefaultFnDecl(Option<String>, Span),
     ExportDefaultInterfaceDecl(String, Span),
+    ExportDefaultIdentifier(String, Span),
+    ExportDefaultCallExpression(Option<String>, Span),
+    ExportDefaultConditionalExpression(Option<String>, Option<String>, Span),
 
     ImportDefault(String, Span, LNFileReference, bool),
     ImportStar(String, Span, LNFileReference, bool),

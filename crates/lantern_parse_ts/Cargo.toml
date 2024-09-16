@@ -8,9 +8,9 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6.2"
 
-oxc_allocator = "0.12.1"
-oxc_ast = "0.12.1"
-oxc_parser = "0.12.1"
-oxc_span = "0.12.1"
+oxc_allocator = "0.29.0"
+oxc_ast = "0.29.0"
+oxc_parser = "0.29.0"
+oxc_span = "0.29.0"
 
 lantern_testing = { path = "../lantern_testing" }

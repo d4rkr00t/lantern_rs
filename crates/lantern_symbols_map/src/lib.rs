@@ -9,7 +9,8 @@ use color_eyre::eyre::Result;
 use oxc_allocator::Allocator;
 use oxc_ast::{
     ast::{
-        BindingPatternKind, Declaration, ExportDefaultDeclarationKind, ImportDeclarationSpecifier,
+        BindingPatternKind, Declaration, ExportDefaultDeclaration, ExportDefaultDeclarationKind,
+        ImportDeclarationSpecifier,
     },
     Visit,
 };
@@ -119,7 +120,41 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
         decl: &oxc_ast::ast::ExportDefaultDeclaration<'a>,
     ) {
         match &decl.declaration {
-            ExportDefaultDeclarationKind::Expression(_) => {
+            ExportDefaultDeclarationKind::ArrayExpression(_)
+            | ExportDefaultDeclarationKind::ArrowFunctionExpression(_)
+            | ExportDefaultDeclarationKind::AwaitExpression(_)
+            | ExportDefaultDeclarationKind::BigIntLiteral(_)
+            | ExportDefaultDeclarationKind::BinaryExpression(_)
+            | ExportDefaultDeclarationKind::BooleanLiteral(_)
+            | ExportDefaultDeclarationKind::ChainExpression(_)
+            | ExportDefaultDeclarationKind::ComputedMemberExpression(_)
+            | ExportDefaultDeclarationKind::ImportExpression(_)
+            | ExportDefaultDeclarationKind::JSXElement(_)
+            | ExportDefaultDeclarationKind::JSXFragment(_)
+            | ExportDefaultDeclarationKind::LogicalExpression(_)
+            | ExportDefaultDeclarationKind::MetaProperty(_)
+            | ExportDefaultDeclarationKind::NullLiteral(_)
+            | ExportDefaultDeclarationKind::NumericLiteral(_)
+            | ExportDefaultDeclarationKind::ObjectExpression(_)
+            | ExportDefaultDeclarationKind::ParenthesizedExpression(_)
+            | ExportDefaultDeclarationKind::PrivateInExpression(_)
+            | ExportDefaultDeclarationKind::PrivateFieldExpression(_)
+            | ExportDefaultDeclarationKind::RegExpLiteral(_)
+            | ExportDefaultDeclarationKind::SequenceExpression(_)
+            | ExportDefaultDeclarationKind::StringLiteral(_)
+            | ExportDefaultDeclarationKind::StaticMemberExpression(_)
+            | ExportDefaultDeclarationKind::Super(_)
+            | ExportDefaultDeclarationKind::TaggedTemplateExpression(_)
+            | ExportDefaultDeclarationKind::ThisExpression(_)
+            | ExportDefaultDeclarationKind::TemplateLiteral(_)
+            | ExportDefaultDeclarationKind::TSAsExpression(_)
+            | ExportDefaultDeclarationKind::TSSatisfiesExpression(_)
+            | ExportDefaultDeclarationKind::TSTypeAssertion(_)
+            | ExportDefaultDeclarationKind::TSNonNullExpression(_)
+            | ExportDefaultDeclarationKind::TSInstantiationExpression(_)
+            | ExportDefaultDeclarationKind::UnaryExpression(_)
+            | ExportDefaultDeclarationKind::UpdateExpression(_)
+            | ExportDefaultDeclarationKind::YieldExpression(_) => {
                 self.symbols_map.add_symbol(
                     self.module_id,
                     LNSymbol {
@@ -128,7 +163,87 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                     },
                 );
             }
-            ExportDefaultDeclarationKind::ClassDeclaration(class_decl) => {
+            ExportDefaultDeclarationKind::AssignmentExpression(id) => {
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    LNSymbol {
+                        module_id: self.module_id,
+                        symbol: LNSymbolData::ExportDefaultIdentifier(
+                            id.left.get_identifier().unwrap().to_string(),
+                            id.span.clone(),
+                        ),
+                    },
+                );
+            }
+            ExportDefaultDeclarationKind::ConditionalExpression(cond) => {
+                let mut left = None;
+                let mut right = None;
+
+                if let Some(id) = cond.consequent.get_identifier_reference() {
+                    left = Some(id.name.to_string());
+                }
+
+                if let Some(id) = cond.alternate.get_identifier_reference() {
+                    right = Some(id.name.to_string());
+                }
+
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    LNSymbol {
+                        module_id: self.module_id,
+                        symbol: LNSymbolData::ExportDefaultConditionalExpression(
+                            left,
+                            right,
+                            cond.span.clone(),
+                        ),
+                    },
+                );
+            }
+            ExportDefaultDeclarationKind::CallExpression(call) => {
+                let name = if let Some(callee_name) = call.callee_name() {
+                    Some(callee_name.to_string())
+                } else {
+                    None
+                };
+
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    LNSymbol {
+                        module_id: self.module_id,
+                        symbol: LNSymbolData::ExportDefaultCallExpression(name, call.span.clone()),
+                    },
+                );
+            }
+
+            ExportDefaultDeclarationKind::NewExpression(call) => {
+                let name = if let Some(callee) = call.callee.get_identifier_reference() {
+                    Some(callee.name.to_string())
+                } else {
+                    None
+                };
+
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    LNSymbol {
+                        module_id: self.module_id,
+                        symbol: LNSymbolData::ExportDefaultCallExpression(name, call.span.clone()),
+                    },
+                );
+            }
+            ExportDefaultDeclarationKind::Identifier(id) => {
+                self.symbols_map.add_symbol(
+                    self.module_id,
+                    LNSymbol {
+                        module_id: self.module_id,
+                        symbol: LNSymbolData::ExportDefaultIdentifier(
+                            id.name.to_string(),
+                            id.span.clone(),
+                        ),
+                    },
+                );
+            }
+            ExportDefaultDeclarationKind::ClassDeclaration(class_decl)
+            | ExportDefaultDeclarationKind::ClassExpression(class_decl) => {
                 let name = if let Some(ident) = &class_decl.id {
                     Some(ident.name.to_string())
                 } else {
@@ -142,7 +257,8 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                     },
                 );
             }
-            ExportDefaultDeclarationKind::FunctionDeclaration(fn_decl) => {
+            ExportDefaultDeclarationKind::FunctionDeclaration(fn_decl)
+            | ExportDefaultDeclarationKind::FunctionExpression(fn_decl) => {
                 let name = if let Some(ident) = &fn_decl.id {
                     Some(ident.name.to_string())
                 } else {
@@ -173,7 +289,6 @@ impl<'a> Visit<'a> for LNVisitor<'a> {
                     },
                 );
             }
-            ExportDefaultDeclarationKind::TSEnumDeclaration(_) => {}
         }
     }
 

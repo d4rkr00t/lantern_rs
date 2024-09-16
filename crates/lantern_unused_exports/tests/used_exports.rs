@@ -22,7 +22,6 @@ mod tests {
         assert_eq!(unused_exports.len(), 0);
     }
 
-    // TODO: transitive named exports marked unused when they are used
     #[test]
     fn simple_named_transitive() {
         let path_buf = load_fixture!("used_simple_named_transitive/index.ts");
@@ -46,6 +45,7 @@ mod tests {
         let path_buf = load_fixture!("used_default_export/index.ts");
         let ep = vec![path_buf];
         let sm = build_symbols_map(&ep).unwrap();
+        println!("{:#?}", sm);
         let unused_exports = find_unused_exports(&sm).unwrap();
         assert_eq!(unused_exports.len(), 0);
     }
@@ -58,4 +58,13 @@ mod tests {
         let unused_exports = find_unused_exports(&sm).unwrap();
         assert_eq!(unused_exports.len(), 0);
     }
+
+    // #[test]
+    // fn export_star() {
+    //     let path_buf = load_fixture!("used_export_star/index.ts");
+    //     let ep = vec![path_buf];
+    //     let sm = build_symbols_map(&ep).unwrap();
+    //     let unused_exports = find_unused_exports(&sm).unwrap();
+    //     assert_eq!(unused_exports.len(), 0);
+    // }
 }

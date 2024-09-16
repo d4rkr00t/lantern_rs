@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-oxc_span = "0.12.1"
+oxc_span = "0.29.0"
 colored = "2.0.4"
 
 lantern_testing = { path = "../lantern_testing" }

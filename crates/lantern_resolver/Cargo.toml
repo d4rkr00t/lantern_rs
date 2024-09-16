@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 color-eyre = "0.6.2"
 
-oxc_resolver = "1.6.4"
+oxc_resolver = "1.11.0"
