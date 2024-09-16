@@ -9,8 +9,7 @@ use color_eyre::eyre::Result;
 use oxc_allocator::Allocator;
 use oxc_ast::{
     ast::{
-        BindingPatternKind, Declaration, ExportDefaultDeclaration, ExportDefaultDeclarationKind,
-        ImportDeclarationSpecifier,
+        BindingPatternKind, Declaration, ExportDefaultDeclarationKind, ImportDeclarationSpecifier,
     },
     Visit,
 };

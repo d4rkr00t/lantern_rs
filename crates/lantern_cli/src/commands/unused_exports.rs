@@ -9,6 +9,7 @@ pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
     let mut ln_map = lantern_symbols_map::build_symbols_map(&entry_points)?;
     let mut annotations: HashMap<usize, CodeAnnotation> = HashMap::new();
     let unused_exports = find_unused_exports(&ln_map)?;
+    let total = unused_exports.len();
 
     for symbol in unused_exports {
         let span = symbol.get_span();
@@ -36,6 +37,8 @@ pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
         println!("{}", value.print());
         println!();
     }
+
+    println!("Total unused exports found: {}", total);
 
     return Ok(());
 }

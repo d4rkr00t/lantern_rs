@@ -66,8 +66,6 @@ pub fn find_unused_exports(ln_map: &LNSymbolsMap) -> Result<Vec<LNSymbol>> {
 
                     match &x.symbol {
                         LNSymbolData::ExportAll(_) => {
-                            println!("ExportAll {:#?}", x);
-                            println!("Module {:#?}", ln_map.get_module(x.module_id));
                             return true;
                         }
                         _ => {}
