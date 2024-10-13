@@ -33,6 +33,12 @@ enum Commands {
         path: Vec<PathBuf>,
     },
 
+    /// Find all file level cycles
+    Cycles {
+        #[arg(required = true)]
+        path: Vec<PathBuf>,
+    },
+
     /// Find affected files in a project
     Affected {
         #[arg(short, long, required = true)]
@@ -56,6 +62,9 @@ fn main() -> Result<()> {
         }
         Commands::Depgraph { path } => {
             commands::depgraph::build(path).unwrap();
+        }
+        Commands::Cycles { path } => {
+            commands::cycles::run(path).unwrap();
         }
         Commands::Affected { entries, changed } => {
             println!("Entries: {:?}, Changed: {:?}", entries, changed);

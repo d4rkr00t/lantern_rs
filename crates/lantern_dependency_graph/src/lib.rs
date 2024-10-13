@@ -15,6 +15,11 @@ pub struct LanternFileDependencyMap {
     pub inverse_dependency_map: HashMap<usize, HashSet<usize>>,
 }
 
+//
+//
+// File level dependency map.
+//
+//
 impl LanternFileDependencyMap {
     pub fn new(symbols_map: LNSymbolsMap) -> Self {
         Self {
