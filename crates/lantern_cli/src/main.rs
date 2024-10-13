@@ -55,7 +55,7 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Commands::UnusedExports { path } => {
-            commands::unused_exports::analyze(path).unwrap();
+            commands::unused_exports::command::run(path).unwrap();
         }
         Commands::FilesWithReExports { path } => {
             commands::files_with_reexports::run(path).unwrap();

@@ -14,4 +14,3 @@ lantern_code_annotation = { path = "../lantern_code_annotation" }
 lantern_dependency_graph = { path = "../lantern_dependency_graph" }
 lantern_symbols_map = { path = "../lantern_symbols_map" }
 lantern_testing = { path = "../lantern_testing" }
-lantern_unused_exports = { path = "../lantern_unused_exports" }

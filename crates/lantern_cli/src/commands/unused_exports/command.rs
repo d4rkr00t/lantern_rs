@@ -3,9 +3,10 @@ use std::{collections::HashMap, path::PathBuf};
 use color_eyre::eyre::Result;
 
 use lantern_code_annotation::CodeAnnotation;
-use lantern_unused_exports::find_unused_exports;
 
-pub fn analyze(entry_points: &Vec<PathBuf>) -> Result<()> {
+use crate::commands::unused_exports::find_unused_exports::find_unused_exports;
+
+pub fn run(entry_points: &Vec<PathBuf>) -> Result<()> {
     let mut ln_map = lantern_symbols_map::build_symbols_map(&entry_points)?;
     let mut annotations: HashMap<usize, CodeAnnotation> = HashMap::new();
     let unused_exports = find_unused_exports(&ln_map)?;
