@@ -103,6 +103,15 @@ pub fn find_unused_exports(ln_map: &LNSymbolsMap) -> Result<Vec<LNSymbol>> {
                     exports.remove(idx);
                 }
             }
+            LNSymbolData::ExportAll(file_ref) => {
+                exports = exports
+                    .iter()
+                    .filter(|x| {
+                        return x.module_id != file_ref.module_id;
+                    })
+                    .cloned()
+                    .collect();
+            }
             LNSymbolData::ImportStar(_, _, file_ref, _) => {
                 exports = exports
                     .iter()

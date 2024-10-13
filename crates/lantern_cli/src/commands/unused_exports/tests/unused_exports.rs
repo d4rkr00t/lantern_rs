@@ -51,14 +51,13 @@ mod tests {
         assert_eq!(unused_exports.len(), 1);
     }
 
-    // TODO: figure out how to handle export star and not mark it full as unused
-    // #[test]
-    // fn export_star() {
-    //     let path_buf = load_fixture!("unused_export_star/index.ts");
-    //     let ep = vec![path_buf];
-    //     let sm = build_symbols_map(&ep).unwrap();
-    //     let unused_exports = find_unused_exports(&sm).unwrap();
-    //     println!("{:#?}", unused_exports);
-    //     assert_eq!(unused_exports.len(), 1);
-    // }
+    #[test]
+    fn export_star() {
+        let path_buf = load_fixture!("unused_export_star/index.ts");
+        let ep = vec![path_buf];
+        let sm = build_symbols_map(&ep).unwrap();
+        let unused_exports = find_unused_exports(&sm).unwrap();
+        println!("{:#?}", unused_exports);
+        assert_eq!(unused_exports.len(), 0);
+    }
 }
