@@ -8,7 +8,6 @@ members = [
   "crates/lantern_symbols_map",
   "crates/lantern_testing", 
   "crates/lantern_unused_exports",
-  "crates/lantern_files_with_reexports",
 ]
 
 resolver = "2"

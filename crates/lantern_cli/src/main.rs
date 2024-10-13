@@ -58,7 +58,7 @@ fn main() -> Result<()> {
             commands::unused_exports::analyze(path).unwrap();
         }
         Commands::FilesWithReExports { path } => {
-            commands::files_with_reexports::analyze(path).unwrap();
+            commands::files_with_reexports::run(path).unwrap();
         }
         Commands::Depgraph { path } => {
             commands::depgraph::build(path).unwrap();
