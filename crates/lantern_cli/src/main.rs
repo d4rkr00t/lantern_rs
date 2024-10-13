@@ -68,7 +68,7 @@ fn main() -> Result<()> {
         }
         Commands::Affected { entries, changed } => {
             println!("Entries: {:?}, Changed: {:?}", entries, changed);
-            commands::affected::analyze(entries, changed).unwrap();
+            commands::affected::run(entries, changed).unwrap();
         }
     };
 

@@ -7,7 +7,7 @@ use color_eyre::eyre::Result;
 
 use lantern_dependency_graph::LanternFileDependencyMap;
 
-pub fn analyze(entry_points: &Vec<PathBuf>, changed: &Vec<PathBuf>) -> Result<()> {
+pub fn run(entry_points: &Vec<PathBuf>, changed: &Vec<PathBuf>) -> Result<()> {
     let ln_map = lantern_symbols_map::build_symbols_map(entry_points)?;
     let mut depgraph = LanternFileDependencyMap::new(ln_map);
     depgraph.build_dependency_graph();
